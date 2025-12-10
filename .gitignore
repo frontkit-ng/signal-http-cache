@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Lock files
+package-lock.json
+
 # Build output (optional - some prefer to commit dist)
 dist/
 
@@ -23,3 +26,11 @@ coverage/
 # Logs
 *.log
 npm-debug.log*
+
+# Environment files
+.env
+.env.local
+
+# Temporary files
+tmp/
+.tmp/
