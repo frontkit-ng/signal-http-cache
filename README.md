@@ -1,6 +1,6 @@
 # @frontkit-ng/signal-http-cache
 
-A lightweight, Signal-powered HTTP caching library for Angular.
+A Signal-based HTTP caching library for Angular.
 
 [![npm version](https://img.shields.io/npm/v/@frontkit-ng/signal-http-cache.svg)](https://www.npmjs.com/package/@frontkit-ng/signal-http-cache)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
@@ -8,31 +8,31 @@ A lightweight, Signal-powered HTTP caching library for Angular.
 
 ---
 
-## ✨ Features
+## Features
 
-⚡ **TTL-based Caching** — Automatic cache expiration with configurable time-to-live
+- **Time-to-live based caching**
 
-🔄 **Stale-While-Revalidate** — Serve cached data instantly while fetching fresh data in background
+- **Stale-while-revalidate**
 
-🚫 **Request Deduplication** — Multiple components share the same in-flight request
+- **Request deduplication**
 
-🧠 **Pure Signals** — Native Angular Signals, no RxJS required
+- **Pure Signals, no RxJS required**
 
-🌐 **Custom Fetch** - Use native `fetch` or provide your own (HttpClient, SSR, etc.)
+- **Native `fetch` or provide your own (HttpClient, SSR, etc.)**
 
-🧹 **Auto Cleanup** — Automatic cache cleanup via Angular `DestroyRef`
+- **Auto cleanup via Angular `DestroyRef`**
 
-📝 **Mutations** — Full support for POST/PUT/PATCH/DELETE with state tracking
+- **Mutations for POST/PUT/PATCH/DELETE**
 
-🔁 **Retry Support** — Configurable retry with exponential backoff
+- **Retry with exponential backoff**
 
-🎯 **Race Condition Prevention** — Force refresh aborts previous pending requests
+- **Race condition prevention**
 
-🗑️ **Cache Invalidation** — Automatically invalidate queries after mutations
+- **Cache automatic invalidation**
 
 ---
 
-## 📦 Installation
+## Installation
 
 ```bash
 npm install @frontkit-ng/signal-http-cache
@@ -40,13 +40,13 @@ npm install @frontkit-ng/signal-http-cache
 
 ---
 
-## 📌 Peer Dependencies
+## Peer Dependencies
 
 `@angular/core >=16.0.0`
 
 ---
 
-## 🔍 Queries
+## Queries
 
 Use `createQuery` to fetch and cache data.
 
@@ -57,20 +57,20 @@ import { createQuery } from "@frontkit-ng/signal-http-cache";
 
 const usersQuery = createQuery<User[]>("/api/users");
 
-// Fetch data
+// fetch data
 await usersQuery.fetch();
 
-// Reactive state
+// reactive state
 usersQuery.data();
 usersQuery.loading();
 usersQuery.error();
 ```
 
-### TTL (Time-to-Live)
+### TTL (Time-to-live)
 
 ```ts
 const query = createQuery("/api/data", {
-  ttl: 60000, // Cache for 60 seconds
+  ttl: 60000, // cache for 60 seconds
 });
 ```
 
@@ -78,7 +78,7 @@ const query = createQuery("/api/data", {
 
 ```ts
 const query = createQuery<Data>("/api/data", {
-  staleWhileRevalidate: true, // Show stale data while fetching
+  staleWhileRevalidate: true, // show stale data while fetching
 });
 ```
 
@@ -117,7 +117,7 @@ Each unique combination creates a separate cache entry, perfect for:
 
 ---
 
-## ✏️ Mutations
+## Mutations
 
 Use `createMutation` for data modifications (POST, PUT, PATCH, DELETE).
 
@@ -155,11 +155,11 @@ deleteTodo.mutate(5); // DELETE /api/todos/5
 ```ts
 const submitForm = createMutation<Response, FormData>("/api/submit", {
   retry: 3,
-  retryDelay: (attempt) => 1000 * 2 ** attempt, // Exponential backoff
+  retryDelay: (attempt) => 1000 * 2 ** attempt, // exponential backoff
 });
 ```
 
-## 🧩 Full Component Example
+## Full Component Example
 
 ```ts
 import { Component, OnInit } from "@angular/core";
@@ -232,7 +232,7 @@ export class TodosComponent implements OnInit {
 
 ---
 
-## 📡 Using Angular HttpClient (Optional)
+## Using Angular HttpClient (Optional)
 
 By default, the library uses the native browser `fetch` API. To use Angular's `HttpClient` instead (for interceptors, auth tokens, etc.), create an adapter:
 
@@ -296,7 +296,7 @@ export function httpClientAdapter(url: string, init?: RequestInit) {
       status: response.status,
       statusText: response.statusText,
       json: () => Promise.resolve(responseBody),
-      text: () => Promise.resolve(bodyText), // ← Required for createMutation
+      text: () => Promise.resolve(bodyText), // ← required for createMutation
     } as Response;
   });
 }
@@ -310,14 +310,14 @@ Pass your adapter as the third argument to `createQuery` or `createMutation`:
 import { createQuery } from "@frontkit-ng/signal-http-cache";
 import { httpClientAdapter } from "./http-client-adapter";
 
-// Query
+// query
 const users = createQuery<User[]>(
   "/api/users",
   { ttl: 60000 },
   httpClientAdapter
 );
 
-// Mutation
+// mutation
 const addUser = createMutation<User, { name: string }>(
   "/api/users",
   { onSuccess: () => users.fetch(true) },
@@ -327,6 +327,6 @@ const addUser = createMutation<User, { name: string }>(
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.

@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.8] - 2025-12-10
+- Adding Mutants to support PUSH/PUT/PATCH/DELETE actions
+
 ## [0.1.6] - 2025-12-03
 - Various improvements and bug fixes
 
