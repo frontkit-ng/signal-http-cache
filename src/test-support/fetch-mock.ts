@@ -12,6 +12,7 @@ export function jsonResponse(data: unknown, ok = true, status = 200): Response {
 export type DeferredFetch = {
   fetchFn: typeof fetch;
   callCount: () => number;
+  getLastInit: () => RequestInit | undefined;
   resolvePending: (data: unknown) => Promise<void>;
   rejectPending: (error: unknown) => Promise<void>;
   resolvePendingWithResponse: (response: Response) => Promise<void>;
@@ -23,9 +24,11 @@ export function createDeferredFetch(): DeferredFetch {
   let pendingReject: ((error: unknown) => void) | null = null;
   let count = 0;
   let lastSignal: AbortSignal | undefined;
+  let lastInit: RequestInit | undefined;
 
   const fetchFn = (async (_url: string, init?: RequestInit) => {
     count++;
+    lastInit = init;
     lastSignal = init?.signal ?? undefined;
 
     if (init?.signal?.aborted) {
@@ -57,6 +60,7 @@ export function createDeferredFetch(): DeferredFetch {
   return {
     fetchFn,
     callCount: () => count,
+    getLastInit: () => lastInit,
     resolvePending: async (data: unknown) => {
       await settle(() => pendingResolve?.(jsonResponse(data)));
     },

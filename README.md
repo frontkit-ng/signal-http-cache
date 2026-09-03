@@ -18,7 +18,7 @@ A Signal-based HTTP caching library for Angular.
 
 - **Pure Signals, no RxJS required**
 
-- **Native `fetch` or provide your own (HttpClient, SSR, etc.)**
+- **Native `fetch` or provide your own transport (for example HttpClient via a fetch adapter)**
 
 - **Auto cleanup via Angular `DestroyRef`**
 
@@ -43,6 +43,8 @@ npm install @frontkit-ng/signal-http-cache
 ## Peer Dependencies
 
 `@angular/core >=16.0.0`
+
+This package aims to support the oldest Angular version that provides the framework capabilities it actually uses, not merely the versions currently in Angular's active/LTS support window. The minimum supported version is determined by real API requirements and compatibility validation.
 
 ---
 
@@ -373,6 +375,30 @@ export class UsersComponent {
   );
 }
 ```
+
+---
+
+## When to use this library vs Angular `httpResource()`
+
+On Angular versions that include native resource APIs, `httpResource()` is a good fit when the main requirement is reactive HttpClient-backed loading for an individual resource.
+
+`signal-http-cache` adds value when the application needs the capabilities implemented here:
+
+- shared cache state across multiple consumers of the same query key
+- TTL and stale-while-revalidate behavior
+- in-flight request deduplication
+- mutation-driven cache invalidation
+
+Native Angular resource APIs are optional comparison points for newer Angular apps. They are not prerequisites for installing or using this package.
+
+---
+
+## Limitations
+
+- Cache state is browser/client scoped by design. The current architecture uses module-level shared cache state and does not provide per-request isolation for Angular SSR or server rendering.
+- Angular SSR is not currently supported. Supplying a custom transport does not make SSR safe with the current cache model.
+- Query keys are resolved once when `createQuery()` is called. They are not reactive.
+- `createQuery()` must be called synchronously within an Angular injection context so `DestroyRef` can register cleanup.
 
 ---
 

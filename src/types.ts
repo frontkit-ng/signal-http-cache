@@ -15,9 +15,29 @@ export interface HttpQuery<T> {
   invalidate(): void;
 }
 
-export interface QueryOptions extends Omit<RequestInit, "method" | "body"> {
+export type QueryLibraryOptions = {
   ttl?: number;
   staleWhileRevalidate?: boolean;
+};
+
+export type QueryFetchInit = Omit<RequestInit, "method" | "body">;
+
+export type QueryOptions = QueryLibraryOptions & QueryFetchInit;
+
+export function splitQueryOptions(
+  options: Omit<QueryOptions, "method"> = {}
+): {
+  library: Required<QueryLibraryOptions>;
+  fetchInit: QueryFetchInit;
+} {
+  const { ttl, staleWhileRevalidate, ...fetchInit } = options;
+  return {
+    library: {
+      ttl: ttl ?? 0,
+      staleWhileRevalidate: staleWhileRevalidate ?? false,
+    },
+    fetchInit,
+  };
 }
 
 export type MutationStatus = "idle" | "pending" | "success" | "error";

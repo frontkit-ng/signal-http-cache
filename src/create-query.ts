@@ -1,6 +1,12 @@
 import { signal, DestroyRef, inject } from "@angular/core";
 import { cacheStore } from "./cache-store";
-import { HttpQuery, HttpQueryError, QueryKey, QueryOptions } from "./types";
+import {
+  HttpQuery,
+  HttpQueryError,
+  QueryKey,
+  QueryOptions,
+  splitQueryOptions,
+} from "./types";
 import { parseJsonSafe, toHttpQueryError } from "./utils";
 
 function resolveQueryKey(key: QueryKey): { cacheKey: string; url: string } {
@@ -29,7 +35,8 @@ export function createQuery<T>(
   fetchFn: typeof fetch = fetch
 ): HttpQuery<T> {
   const { cacheKey, url } = resolveQueryKey(key);
-  const ttl = options.ttl ?? 0;
+  const { library, fetchInit } = splitQueryOptions(options);
+  const { ttl, staleWhileRevalidate } = library;
   const data = signal<T | null>(null);
   const loading = signal(false);
   const error = signal<HttpQueryError | null>(null);
@@ -59,7 +66,6 @@ export function createQuery<T>(
       ttl: current.ttl,
       inFlight: undefined,
       abortController: undefined,
-      refCount: cacheStore.getConsumerCount(cacheKey),
     });
   }
 
@@ -92,7 +98,7 @@ export function createQuery<T>(
         data.set(cached.data);
         return;
       }
-      if (options.staleWhileRevalidate) {
+      if (staleWhileRevalidate) {
         error.set(null);
         data.set(cached.data);
         revalidate();
@@ -145,14 +151,12 @@ export function createQuery<T>(
       ttl: ttl,
       inFlight: inFlightPromise,
       abortController,
-      refCount: cacheStore.getConsumerCount(cacheKey),
     });
 
     try {
       const response = await fetchFn(url, {
-        ...options,
+        ...fetchInit,
         method: "GET",
-        headers: options.headers,
         signal: abortController.signal,
       });
       if (!response.ok) {
@@ -173,7 +177,6 @@ export function createQuery<T>(
           ttl: ttl,
           inFlight: undefined,
           abortController: undefined,
-          refCount: cacheStore.getConsumerCount(cacheKey),
         });
         settleInFlight("resolve", json);
         data.set(json);

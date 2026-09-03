@@ -1,10 +1,9 @@
-export interface CacheEntry<T> {
+interface CacheEntry<T> {
   data: T | null;
   timestamp: number;
   ttl: number;
   inFlight?: Promise<T>;
   abortController?: AbortController;
-  refCount: number;
 }
 
 const cache = new Map<string, CacheEntry<any>>();
@@ -46,10 +45,6 @@ export const cacheStore = {
       return true;
     }
     consumerCounts.set(key, count);
-    const entry = cache.get(key);
-    if (entry) {
-      entry.refCount = count;
-    }
     return false;
   },
   getConsumerCount(key: string): number {

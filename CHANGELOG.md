@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** Removed `cacheStore` and `CacheEntry` from the public package API. Cache behavior is accessed through `createQuery()` / mutation APIs only.
+- Documented the current product boundary: cache state is intended for browser/client-side Angular applications; Angular SSR/server cache isolation is not currently supported.
+
+### Fixed
+
+- Library-owned query options (`ttl`, `staleWhileRevalidate`) are no longer forwarded to custom `fetchFn` transport `RequestInit`.
+
+### Removed
+
+- Internal `CacheEntry.refCount` duplicate ownership field; active-consumer ownership uses `consumerCounts` only.
+
 ## [0.2.3] - 2026-03-03
 
 ### Fixed
