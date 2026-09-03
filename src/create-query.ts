@@ -13,6 +13,16 @@ function resolveQueryKey(key: QueryKey): { cacheKey: string; url: string } {
   return { cacheKey, url };
 }
 
+function isAbortError(e: unknown): boolean {
+  return e instanceof DOMException && e.name === "AbortError";
+}
+
+/**
+ * Creates a signal-backed HTTP query with shared cache and lifecycle cleanup.
+ *
+ * Must be called synchronously within an Angular injection context (for example,
+ * a component or service field initializer) so `DestroyRef` can register cleanup.
+ */
 export function createQuery<T>(
   key: QueryKey,
   options: Omit<QueryOptions, "method"> = {},
@@ -23,21 +33,35 @@ export function createQuery<T>(
   const data = signal<T | null>(null);
   const loading = signal(false);
   const error = signal<HttpQueryError | null>(null);
-  const existing = cacheStore.get<T>(cacheKey);
 
-  if (existing) {
-    cacheStore.incrementRef(cacheKey);
-    // hydrate signal with existing cached data
-    if (existing.data !== null) {
-      data.set(existing.data);
-    }
+  const destroyRef = inject(DestroyRef);
+
+  cacheStore.registerConsumer(cacheKey);
+
+  destroyRef.onDestroy(() => {
+    cacheStore.releaseConsumer(cacheKey);
+  });
+
+  const existing = cacheStore.get<T>(cacheKey);
+  if (existing?.data !== null && existing?.data !== undefined) {
+    data.set(existing.data);
   }
 
-  // auto cleanup on destroy
-  const destroyRef = inject(DestroyRef);
-  destroyRef.onDestroy(() => {
-    cacheStore.decrementRef(cacheKey);
-  });
+  function clearActiveRequestIfCurrent(inFlightPromise: Promise<T>): void {
+    const current = cacheStore.get<T>(cacheKey);
+    if (current?.inFlight !== inFlightPromise) {
+      return;
+    }
+
+    cacheStore.set(cacheKey, {
+      data: current.data,
+      timestamp: current.timestamp,
+      ttl: current.ttl,
+      inFlight: undefined,
+      abortController: undefined,
+      refCount: cacheStore.getConsumerCount(cacheKey),
+    });
+  }
 
   async function fetchData(force = false): Promise<void> {
     const cached = cacheStore.get<T>(cacheKey);
@@ -51,6 +75,9 @@ export function createQuery<T>(
           error.set(null);
           data.set(result);
         } catch (e) {
+          if (isAbortError(e)) {
+            return;
+          }
           error.set(toHttpQueryError(e));
         }
         return;
@@ -84,11 +111,31 @@ export function createQuery<T>(
 
     let resolveFn!: (value: T) => void;
     let rejectFn!: (error: unknown) => void;
+    let settled = false;
 
     const inFlightPromise = new Promise<T>((resolve, reject) => {
       resolveFn = resolve;
       rejectFn = reject;
     });
+    inFlightPromise.catch(() => {
+      // Avoid unhandled rejection when this attempt has no joiners.
+    });
+
+    const settleInFlight = (
+      outcome: "resolve" | "reject",
+      value?: T,
+      reason?: unknown
+    ): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (outcome === "resolve") {
+        resolveFn(value as T);
+      } else {
+        rejectFn(reason);
+      }
+    };
 
     const previous = cacheStore.get<T>(cacheKey);
 
@@ -98,7 +145,7 @@ export function createQuery<T>(
       ttl: ttl,
       inFlight: inFlightPromise,
       abortController,
-      refCount: previous?.refCount ?? 1,
+      refCount: cacheStore.getConsumerCount(cacheKey),
     });
 
     try {
@@ -117,23 +164,39 @@ export function createQuery<T>(
       }
 
       const json = parseJsonSafe<T>(await response.text());
+      const current = cacheStore.get<T>(cacheKey);
 
-      cacheStore.set(cacheKey, {
-        data: json,
-        timestamp: Date.now(),
-        ttl: ttl,
-        inFlight: undefined,
-        abortController: undefined,
-        refCount: cacheStore.get<T>(cacheKey)?.refCount ?? 1,
-      });
-
-      resolveFn(json);
-      data.set(json);
+      if (current?.inFlight === inFlightPromise) {
+        cacheStore.set(cacheKey, {
+          data: json,
+          timestamp: Date.now(),
+          ttl: ttl,
+          inFlight: undefined,
+          abortController: undefined,
+          refCount: cacheStore.getConsumerCount(cacheKey),
+        });
+        settleInFlight("resolve", json);
+        data.set(json);
+      } else {
+        settleInFlight(
+          "reject",
+          undefined,
+          new DOMException("Aborted", "AbortError")
+        );
+      }
     } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") {
+      if (isAbortError(e)) {
+        clearActiveRequestIfCurrent(inFlightPromise);
+        settleInFlight(
+          "reject",
+          undefined,
+          new DOMException("Aborted", "AbortError")
+        );
         return;
       }
-      rejectFn(e);
+
+      clearActiveRequestIfCurrent(inFlightPromise);
+      settleInFlight("reject", undefined, e);
       error.set(toHttpQueryError(e));
     } finally {
       loading.set(false);

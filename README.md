@@ -50,20 +50,30 @@ npm install @frontkit-ng/signal-http-cache
 
 Use `createQuery` to fetch and cache data.
 
+`createQuery()` must be called synchronously within an Angular injection context (for example, a component or service field initializer). It uses `DestroyRef` to automatically release that query consumer when its Angular owner is destroyed.
+
+Calling `createQuery()` later from arbitrary methods, event handlers, timers, or plain helpers outside Angular DI will fail unless you explicitly run it inside an injection context.
+
+`createMutation()` and `createBaseMutation()` do not use `DestroyRef` and do not share this requirement.
+
 ### Basic Query
 
 ```ts
+import { Component, OnInit } from "@angular/core";
 import { createQuery } from "@frontkit-ng/signal-http-cache";
 
-const usersQuery = createQuery<User[]>("/api/users");
+@Component({ /* ... */ })
+export class UsersComponent implements OnInit {
+  private usersQuery = createQuery<User[]>("/api/users");
 
-// fetch data
-await usersQuery.fetch();
+  ngOnInit() {
+    this.usersQuery.fetch();
+  }
 
-// reactive state
-usersQuery.data();
-usersQuery.loading();
-usersQuery.error();
+  get users() {
+    return this.usersQuery.data;
+  }
+}
 ```
 
 ### TTL (Time-to-live)
@@ -240,6 +250,8 @@ This is **optional** - the library does **not** require `HttpClient`.
 
 ### HttpClient Adapter
 
+Call `inject(HttpClient)` inside an injection context, then return a fetch-compatible function that captures the client:
+
 ```ts
 // http-client-adapter.ts
 
@@ -247,82 +259,88 @@ import { inject } from "@angular/core";
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { firstValueFrom, catchError, of } from "rxjs";
 
-export function httpClientAdapter(url: string, init?: RequestInit) {
+export function createHttpClientFetchFn() {
   const http = inject(HttpClient);
 
-  const method = init?.method ?? "GET";
-  const headers = init?.headers as Record<string, string> | undefined;
+  return (url: string, init?: RequestInit): Promise<Response> => {
+    const method = init?.method ?? "GET";
+    const headers = init?.headers as Record<string, string> | undefined;
 
-  let body: any = undefined;
-  if (init?.body) {
-    if (typeof init.body === "string") {
-      try {
-        body = JSON.parse(init.body);
-      } catch {
+    let body: unknown = undefined;
+    if (init?.body) {
+      if (typeof init.body === "string") {
+        try {
+          body = JSON.parse(init.body);
+        } catch {
+          body = init.body;
+        }
+      } else {
         body = init.body;
       }
-    } else {
-      body = init.body;
     }
-  }
 
-  return firstValueFrom(
-    http
-      .request<unknown>(method, url, {
-        body,
-        headers,
-        observe: "response",
-        responseType: "json",
-      })
-      .pipe(
-        catchError((err: HttpErrorResponse) => {
-          return of({
-            ok: false,
-            status: err.status,
-            statusText: err.statusText,
-            body: err.error,
-          } as any);
+    return firstValueFrom(
+      http
+        .request<unknown>(method, url, {
+          body,
+          headers,
+          observe: "response",
+          responseType: "json",
         })
-      )
-  ).then((response: any) => {
-    const responseBody = response.body;
-    const bodyText =
-      typeof responseBody === "string"
-        ? responseBody
-        : JSON.stringify(responseBody ?? "");
+        .pipe(
+          catchError((err: HttpErrorResponse) => {
+            return of({
+              ok: false,
+              status: err.status,
+              statusText: err.statusText,
+              body: err.error,
+            });
+          })
+        )
+    ).then((response) => {
+      const responseBody = response.body;
+      const bodyText =
+        typeof responseBody === "string"
+          ? responseBody
+          : JSON.stringify(responseBody ?? "");
 
-    return {
-      ok: response.ok ?? (response.status >= 200 && response.status < 300),
-      status: response.status,
-      statusText: response.statusText,
-      json: () => Promise.resolve(responseBody),
-      text: () => Promise.resolve(bodyText), // ← required for createMutation
-    } as Response;
-  });
+      return {
+        ok: response.ok ?? (response.status >= 200 && response.status < 300),
+        status: response.status,
+        statusText: response.statusText,
+        json: () => Promise.resolve(responseBody),
+        text: () => Promise.resolve(bodyText),
+      } as Response;
+    });
+  };
 }
 ```
 
 ### Using the Adapter
 
-Pass your adapter as the third argument to `createQuery` or `createMutation`:
+Create the fetch function in an injection context, then pass it to `createQuery` or `createMutation`:
 
 ```ts
-import { createQuery } from "@frontkit-ng/signal-http-cache";
-import { httpClientAdapter } from "./http-client-adapter";
+import { Component } from "@angular/core";
+import { createQuery, createMutation } from "@frontkit-ng/signal-http-cache";
+import { createHttpClientFetchFn } from "./http-client-adapter";
 
-// query
-const users = createQuery<User[]>(
-  "/api/users",
-  { ttl: 60000 },
-  httpClientAdapter
-);
+@Component({ /* ... */ })
+export class UsersComponent {
+  private httpFetch = createHttpClientFetchFn();
 
-// mutation
-const addUser = createMutation<User, { name: string }>(
-  "/api/users",
-  { onSuccess: () => users.fetch(true) },
-  httpClientAdapter
-);
+  private users = createQuery<User[]>(
+    "/api/users",
+    { ttl: 60000 },
+    this.httpFetch
+  );
+
+  addUser = createMutation<User, { name: string }>(
+    "/api/users",
+    { onSuccess: () => this.users.fetch(true) },
+    this.httpFetch
+  );
+}
 ```
 
 ---

@@ -8,6 +8,7 @@ export interface CacheEntry<T> {
 }
 
 const cache = new Map<string, CacheEntry<any>>();
+const consumerCounts = new Map<string, number>();
 
 export const cacheStore = {
   get<T>(key: string) {
@@ -32,23 +33,27 @@ export const cacheStore = {
       entry.abortController?.abort();
     }
     cache.clear();
+    consumerCounts.clear();
   },
-  incrementRef(key: string) {
-    const entry = cache.get(key);
-    if (entry) {
-      entry.refCount++;
+  registerConsumer(key: string): void {
+    consumerCounts.set(key, (consumerCounts.get(key) ?? 0) + 1);
+  },
+  releaseConsumer(key: string): boolean {
+    const count = (consumerCounts.get(key) ?? 0) - 1;
+    if (count <= 0) {
+      consumerCounts.delete(key);
+      this.delete(key);
+      return true;
     }
-  },
-  decrementRef(key: string): boolean {
+    consumerCounts.set(key, count);
     const entry = cache.get(key);
     if (entry) {
-      entry.refCount--;
-      if (entry.refCount <= 0) {
-        this.delete(key);
-        return true;
-      }
+      entry.refCount = count;
     }
     return false;
+  },
+  getConsumerCount(key: string): number {
+    return consumerCounts.get(key) ?? 0;
   },
   size(): number {
     return cache.size;
