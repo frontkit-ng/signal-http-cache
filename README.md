@@ -24,9 +24,9 @@ A Signal-based HTTP caching library for Angular.
 
 - **Mutations for POST/PUT/PATCH/DELETE**
 
-- **Retry with exponential backoff**
+- **Retry with configurable delay**
 
-- **Race condition prevention**
+- **Safe force-refresh concurrency**
 
 - **Cache automatic invalidation**
 
@@ -84,6 +84,8 @@ const query = createQuery("/api/data", {
 });
 ```
 
+The default `ttl` is `0`, which means cached data is treated as stale on the next `fetch()` and the query revalidates immediately (unless you use stale-while-revalidate).
+
 ### Stale-While-Revalidate
 
 ```ts
@@ -94,7 +96,9 @@ const query = createQuery<Data>("/api/data", {
 
 ### Force Refresh
 
-Ignore cache, always fetch fresh data
+`fetch(true)` bypasses a fresh cache entry and supersedes any in-flight request for the same query key. Use it when you need the latest data regardless of TTL or pending work.
+
+A superseded request cannot overwrite the result of the newer force refresh.
 
 ```ts
 await query.fetch(true);
@@ -102,7 +106,7 @@ await query.fetch(true);
 
 ### Invalidate Cache
 
-Mark cache as stale and abort any pending request
+`invalidate()` marks the cache entry stale and aborts any active request for that query key. The query is not permanently blocked afterward — a later `fetch()` can proceed normally.
 
 ```ts
 query.invalidate();
@@ -110,20 +114,47 @@ query.invalidate();
 
 ---
 
+## Caching behavior
+
+These are the observable guarantees of the current API.
+
+### Shared cache and request deduplication
+
+Queries that resolve to the same cache key share cached data and active request work. If two consumers call `fetch()` while a request is already in flight for that key, only one transport request runs and both callers receive the same result.
+
+### Failure recovery
+
+A failed request does not permanently block the query. After an error, a later `fetch()` can retry normally and update the query state on success.
+
+### Abort and invalidation recovery
+
+`invalidate()` aborts the active request for that query key according to the API contract. Pending callers settle, and the query is not left permanently blocked. A subsequent `fetch()` can proceed.
+
+When the last Angular consumer for a query key is destroyed, any active request for that key is aborted and owned cache state is released.
+
+### Consumer lifecycle
+
+`createQuery()` participates in shared cache state for as long as its Angular owner is alive.
+
+- Multiple live consumers of the same query key share cached data and in-flight work.
+- Destroying one consumer does not remove shared cache state while other consumers still exist.
+- When the final consumer is destroyed, owned cache and request resources for that key are cleaned up automatically via `DestroyRef`.
+
+`createMutation()` and `createBaseMutation()` do not participate in this query lifecycle model.
+
+---
+
 ### Parameterized Query Keys
 
-Query keys determine how requests are cached.
+Query keys determine how requests are cached. A key can be a string or a tuple whose first element is the request URL:
 
 ```ts
-const query = createQuery(["/api/users", page(), searchTerm(), sortBy()]);
+createQuery(["/api/users", 1, "active"]);
 ```
 
-Each unique combination creates a separate cache entry, perfect for:
+The cache key is resolved **once**, when `createQuery()` is called. Changing a `signal()` or other reactive value later does **not** update an already-created query's cache key.
 
-- Pagination
-- Search/filtering
-- Sorting
-- Any dynamic parameters
+For pagination, search, or sorting, call `createQuery()` with the current parameter values when you need a distinct cache entry. Each distinct resolved key gets its own cache entry.
 
 ---
 
