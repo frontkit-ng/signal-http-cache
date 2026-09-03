@@ -1,6 +1,6 @@
 {
   "name": "@frontkit-ng/signal-http-cache",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frontkit-ng/signal-http-cache.git"
@@ -9,7 +9,7 @@
   "bugs": {
     "url": "https://github.com/frontkit-ng/signal-http-cache/issues"
   },
-  "description": "Signal based HTTP cache and query state manager for Angular",
+  "description": "Angular Signals-based HTTP caching and query state management",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
