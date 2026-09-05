@@ -4,10 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Angular 16–22 compatibility is explicitly validated through consumer install, typecheck, and build checks against the packed npm artifact (see `compat/` CI matrix).
+
 ### Changed
 
 - **Breaking:** Removed `cacheStore` and `CacheEntry` from the public package API. Cache behavior is accessed through `createQuery()` / mutation APIs only.
+- **Breaking:** Package `exports` now exposes only the root entry point (`@frontkit-ng/signal-http-cache`). Unsupported deep imports into internal `dist/` modules (for example `cache-store`) are no longer resolvable under standards-compliant package resolution.
+- Peer dependency range tightened to `@angular/core >=16.0.0 <23.0.0` to match tested Angular majors 16–22.
 - Documented the current product boundary: cache state is intended for browser/client-side Angular applications; Angular SSR/server cache isolation is not currently supported.
+- Added `sideEffects: false` for bundler tree-shaking; published modules perform no externally meaningful import-time behavior such as registration, provider setup, or global mutation.
 
 ### Fixed
 
@@ -16,6 +23,7 @@ All notable changes to this project will be documented in this file.
 ### Removed
 
 - Internal `CacheEntry.refCount` duplicate ownership field; active-consumer ownership uses `consumerCounts` only.
+- Unused `tslib` runtime dependency (emitted `dist` does not import it; `importHelpers` is not enabled).
 
 ## [0.2.3] - 2026-03-03
 

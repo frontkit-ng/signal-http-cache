@@ -4,7 +4,7 @@ A Signal-based HTTP caching library for Angular.
 
 [![npm version](https://img.shields.io/npm/v/@frontkit-ng/signal-http-cache.svg)](https://www.npmjs.com/package/@frontkit-ng/signal-http-cache)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Angular](https://img.shields.io/badge/Angular-16+-dd0031.svg)](https://angular.io/)
+[![Angular](https://img.shields.io/badge/Angular-16--22-dd0031.svg)](https://angular.io/)
 
 ---
 
@@ -40,11 +40,23 @@ npm install @frontkit-ng/signal-http-cache
 
 ---
 
+## Angular compatibility
+
+| | |
+|---|---|
+| **Minimum Angular** | 16 |
+| **Tested Angular majors** | 16, 17, 18, 19, 20, 21, 22 |
+| **Peer dependency** | `@angular/core >=16.0.0 <23.0.0` |
+
+Compatibility is verified through lightweight consumer install, typecheck, and build checks in CI using the packed npm-style artifact for each tested major. Core package semantics (caching, lifecycle, mutations, concurrency) are covered by the main behavioral test suite; the compatibility matrix protects packaged consumption across Angular versions.
+
+This package intentionally preserves compatibility with Angular 16 where possible. Angular-native `resource()` / `httpResource()` APIs are optional comparison points for newer apps — they are not dependencies or prerequisites.
+
+---
+
 ## Peer Dependencies
 
-`@angular/core >=16.0.0`
-
-This package aims to support the oldest Angular version that provides the framework capabilities it actually uses, not merely the versions currently in Angular's active/LTS support window. The minimum supported version is determined by real API requirements and compatibility validation.
+`@angular/core >=16.0.0 <23.0.0`
 
 ---
 
