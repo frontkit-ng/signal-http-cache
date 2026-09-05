@@ -1,0 +1,54 @@
+{
+  "description": "Angular consumer compatibility matrix. Node/TypeScript choices follow angular.dev/reference/versions.",
+  "majors": [
+    {
+      "major": 16,
+      "angular": "16.2.12",
+      "node": "18.19.1",
+      "typescript": "5.1.6",
+      "builder": "browser"
+    },
+    {
+      "major": 17,
+      "angular": "17.3.12",
+      "node": "18.19.1",
+      "typescript": "5.4.5",
+      "builder": "application"
+    },
+    {
+      "major": 18,
+      "angular": "18.2.14",
+      "node": "20.11.1",
+      "typescript": "5.5.4",
+      "builder": "application"
+    },
+    {
+      "major": 19,
+      "angular": "19.2.25",
+      "node": "20.11.1",
+      "typescript": "5.7.3",
+      "builder": "application"
+    },
+    {
+      "major": 20,
+      "angular": "20.3.30",
+      "node": "20.19.0",
+      "typescript": "5.8.3",
+      "builder": "application"
+    },
+    {
+      "major": 21,
+      "angular": "21.2.22",
+      "node": "22.12.0",
+      "typescript": "5.9.2",
+      "builder": "application"
+    },
+    {
+      "major": 22,
+      "angular": "22.1.5",
+      "node": "22.22.3",
+      "typescript": "6.0.3",
+      "builder": "application"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+name: Angular compatibility
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  consumer-compat:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - major: 16
+            node: 18.19.1
+          - major: 17
+            node: 18.19.1
+          - major: 18
+            node: 20.11.1
+          - major: 19
+            node: 20.11.1
+          - major: 20
+            node: 20.19.0
+          - major: 21
+            node: 22.12.0
+          - major: 22
+            node: 22.22.3
+
+    name: Angular ${{ matrix.major }} consumer
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Install repository dependencies
+        run: npm ci
+
+      - name: Consumer compatibility proof
+        run: node compat/scripts/run-compat.mjs --major ${{ matrix.major }}

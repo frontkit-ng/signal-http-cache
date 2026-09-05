@@ -24,7 +24,8 @@
     "test": "vitest",
     "test:typecheck": "tsc -p tsconfig.test.json --noEmit",
     "test:watch": "vitest --watch",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "test:compat": "node compat/scripts/run-compat.mjs --all"
   },
   "peerDependencies": {
     "@angular/core": ">=16.0.0"

@@ -34,3 +34,5 @@ npm-debug.log*
 # Temporary files
 tmp/
 .tmp/
+# Compatibility workspaces
+compat/.workspaces/
