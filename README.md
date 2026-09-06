@@ -170,6 +170,29 @@ The cache key is resolved **once**, when `createQuery()` is called. Changing a `
 
 For pagination, search, or sorting, call `createQuery()` with the current parameter values when you need a distinct cache entry. Each distinct resolved key gets its own cache entry.
 
+### Reactive query identity (`createReactiveQuery`)
+
+Use `createReactiveQuery` when the cache key should follow a `Signal<QueryKey>` (for example route params, filters, or pagination):
+
+```ts
+import { computed, signal } from "@angular/core";
+import { createReactiveQuery } from "@frontkit-ng/signal-http-cache";
+
+const page = signal(1);
+const usersKey = computed(() => ["/api/users", page()] as const);
+
+private usersQuery = createReactiveQuery<User[]>(usersKey, { ttl: 60_000 });
+readonly users = this.usersQuery.data;
+```
+
+`createReactiveQuery` automatically performs cache-aware fetching when a **new serialized key becomes active** — synchronously for the initial key, then when Angular's key-observation effect observes a stabilized key change. Intermediate coalesced signal writes may be skipped (for example `A → C` without activating `B`).
+
+Unlike static `createQuery`, reactive queries **do not** require a manual initial `fetch()` for the bound key.
+
+`fetch()`, `fetch(true)`, and `invalidate()` always target the **current active key** at call time. After construction returns, the active key is already defined.
+
+Static `createQuery` is unchanged.
+
 ---
 
 ## Mutations
@@ -409,8 +432,8 @@ Native Angular resource APIs are optional comparison points for newer Angular ap
 
 - Cache state is browser/client scoped by design. The current architecture uses module-level shared cache state and does not provide per-request isolation for Angular SSR or server rendering.
 - Angular SSR is not currently supported. Supplying a custom transport does not make SSR safe with the current cache model.
-- Query keys are resolved once when `createQuery()` is called. They are not reactive.
-- `createQuery()` must be called synchronously within an Angular injection context so `DestroyRef` can register cleanup.
+- Query keys are resolved once when `createQuery()` is called. Use `createReactiveQuery` for signal-driven identity.
+- `createQuery()` and `createReactiveQuery()` must be called synchronously within an Angular injection context so `DestroyRef` (and `effect()` for reactive queries) can register cleanup.
 
 ---
 

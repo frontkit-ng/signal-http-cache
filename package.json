@@ -39,11 +39,16 @@
     "@angular/core": ">=16.0.0 <23.0.0"
   },
   "devDependencies": {
+    "@angular/compiler": "^21.2.22",
     "@angular/core": "^21.0.1",
+    "@angular/platform-browser": "^21.2.22",
+    "@angular/platform-browser-dynamic": "^21.2.22",
     "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^4.0.15",
+    "happy-dom": "^20.14.0",
     "typescript": "^5.4.0",
-    "vitest": "^4.0.15"
+    "vitest": "^4.0.15",
+    "zone.js": "^0.15.1"
   },
   "keywords": [
     "angular",

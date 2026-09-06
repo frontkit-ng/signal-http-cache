@@ -8,4 +8,8 @@ describe("public API boundary", () => {
   it("does not export cacheStore", () => {
     expect("cacheStore" in publicApi).toBe(false);
   });
+
+  it("exports createReactiveQuery", () => {
+    expect(typeof publicApi.createReactiveQuery).toBe("function");
+  });
 });

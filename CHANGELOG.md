@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `createReactiveQuery(keySignal, options?, fetchFn?)` for reactive/parameterized query identity driven by a `Signal<QueryKey>`.
+- Automatic cache-aware fetch when a new serialized key becomes active (synchronously on construction, then on effect-scheduled key transitions).
+- Shared query fetch internals extracted for static and reactive query paths.
+
 ## [0.3.0] - 2026-09-05
 
 ### Added
