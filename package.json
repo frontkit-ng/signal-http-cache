@@ -1,6 +1,6 @@
 {
   "name": "@frontkit-ng/signal-http-cache",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frontkit-ng/signal-http-cache.git"

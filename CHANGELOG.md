@@ -4,15 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-06
+
 ### Added
 
-- `createReactiveQuery` accepts `Signal<QueryKey | undefined>` — when the key is `undefined`, the query is inactive (no cache identity, no fetch).
-- Conditional reactive query examples and TTL reuse guidance in README.
+- `createReactiveQuery` accepts `Signal<QueryKey | undefined>`. When the key is `undefined`, the query is inactive — no active request, no transport, and no cache consumer ownership. A valid key later activates the query normally.
+- Use this for nullable route or input IDs, optional selections, filters or forms that are not ready yet, and dependent reactive values.
 
 ### Fixed
 
-- Reactive queries with an empty string key (`""`) no longer collide with the internal inactive sentinel.
-- README full-component example: delete mutation now calls `fetch(true)` after `invalidateKeys` to refresh the list (cache invalidation alone does not update live query signals).
+- Reactive queries with an empty string key (`""`) are treated as a legitimate active `QueryKey` and no longer collide with inactive state.
+
+### Documentation
+
+- README: conditional reactive query examples, explicit `fetch(true)` after mutation `invalidateKeys` in the todos example, and TTL guidance for completed-response reuse.
+
+### Compatibility
+
+- Angular 16–22 remain supported and tested. Peer dependency unchanged: `@angular/core >=16.0.0 <23.0.0`.
 
 ## [0.4.0] - 2026-09-06
 
