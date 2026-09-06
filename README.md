@@ -98,7 +98,7 @@ const query = createQuery("/api/data", {
 });
 ```
 
-The default `ttl` is `0`, which means cached data is treated as stale on the next `fetch()` and the query revalidates immediately (unless you use stale-while-revalidate).
+The default `ttl` is `0`, which means cached data is treated as stale on the next `fetch()` and the query revalidates immediately (unless you use stale-while-revalidate). Set `ttl` above zero when completed-response reuse is desired; the default prioritizes freshness. In-flight deduplication still applies at the default TTL.
 
 ### Stale-While-Revalidate
 
@@ -172,11 +172,12 @@ For pagination, search, or sorting, call `createQuery()` with the current parame
 
 ### Reactive query identity (`createReactiveQuery`)
 
-Use `createReactiveQuery` when the cache key should follow a `Signal<QueryKey>` (for example route params, filters, or pagination):
+Use `createReactiveQuery` when the cache key should follow a `Signal<QueryKey | undefined>` (for example route params, filters, or pagination):
 
 ```ts
 import { computed, signal } from "@angular/core";
 import { createReactiveQuery } from "@frontkit-ng/signal-http-cache";
+import type { QueryKey } from "@frontkit-ng/signal-http-cache";
 
 const page = signal(1);
 const usersKey = computed(() => ["/api/users", page()] as const);
@@ -185,11 +186,26 @@ private usersQuery = createReactiveQuery<User[]>(usersKey, { ttl: 60_000 });
 readonly users = this.usersQuery.data;
 ```
 
-`createReactiveQuery` automatically performs cache-aware fetching when a **new serialized key becomes active** — synchronously for the initial key, then when Angular's key-observation effect observes a stabilized key change. Intermediate coalesced signal writes may be skipped (for example `A → C` without activating `B`).
+When the key signal is `undefined`, the query is **inactive** — no cache identity, no fetch. Use this for nullable route IDs, absent selections, or filters that are not ready yet:
+
+```ts
+const userId = input<string | undefined>();
+
+private userKey = computed<QueryKey | undefined>(() => {
+  const id = this.userId();
+  return id ? [`/api/users/${id}`] as const : undefined;
+});
+
+private userQuery = createReactiveQuery<User>(this.userKey, { ttl: 60_000 });
+```
+
+For search or filter inputs that change rapidly, debounce the input signal (or use RxJS) before it feeds the key `computed` — the library does not debounce key changes.
+
+`createReactiveQuery` automatically performs cache-aware fetching when a **new serialized key becomes active** — synchronously for the initial key (when not `undefined`), then when Angular's key-observation effect observes a stabilized key change. Intermediate coalesced signal writes may be skipped (for example `A → C` without activating `B`, or `A → undefined → B` coalescing to `A → B`).
 
 Unlike static `createQuery`, reactive queries **do not** require a manual initial `fetch()` for the bound key.
 
-`fetch()`, `fetch(true)`, and `invalidate()` always target the **current active key** at call time. After construction returns, the active key is already defined.
+`fetch()`, `fetch(true)`, and `invalidate()` always target the **current active key** at call time when the query is active. While inactive (`undefined` key), `fetch()` resolves immediately without a network request and `invalidate()` is a no-op.
 
 Static `createQuery` is unchanged.
 
@@ -286,6 +302,7 @@ export class TodosComponent implements OnInit {
   deleteMutation = createMutation<void, string>((id) => `/api/todos/${id}`, {
     method: "DELETE",
     invalidateKeys: ["/api/todos"],
+    onSuccess: () => this.todosQuery.fetch(true),
   });
 
   todos = this.todosQuery.data;

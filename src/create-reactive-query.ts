@@ -18,13 +18,15 @@ import {
 
 /**
  * Creates a reactive signal-backed HTTP query whose cache identity follows a
- * `Signal<QueryKey>`. Automatically fetches when a new serialized key becomes
- * active (synchronously on construction, then via effect-scheduled transitions).
+ * `Signal<QueryKey | undefined>`. Automatically fetches when a new serialized
+ * key becomes active (synchronously on construction, then via effect-scheduled
+ * transitions). When the signal is `undefined`, the query is inactive — no cache
+ * identity, no fetch.
  *
  * Must be called synchronously within an Angular injection context.
  */
 export function createReactiveQuery<T>(
-  key: Signal<QueryKey>,
+  key: Signal<QueryKey | undefined>,
   options: Omit<QueryOptions, "method"> = {},
   fetchFn: typeof fetch = fetch
 ): HttpQuery<T> {
@@ -36,24 +38,31 @@ export function createReactiveQuery<T>(
 
   const destroyRef = inject(DestroyRef);
 
-  let activeCacheKey = "";
-  let activeUrl = "";
+  let activeCacheKey: string | undefined;
+  let activeUrl: string | undefined;
 
-  const getActiveKey = () => ({ cacheKey: activeCacheKey, url: activeUrl });
-  const canUpdateLocal = (requestCacheKey: string) =>
-    requestCacheKey === activeCacheKey;
+  const isActive = () => activeCacheKey !== undefined;
 
-  const { fetchData, invalidate } = createQueryFetchHandlers<T>({
-    data,
-    loading,
-    error,
-    getActiveKey,
-    canUpdateLocal,
-    ttl,
-    staleWhileRevalidate,
-    fetchInit,
-    fetchFn,
+  const getActiveKey = () => ({
+    cacheKey: activeCacheKey as string,
+    url: activeUrl as string,
   });
+
+  const canUpdateLocal = (requestCacheKey: string) =>
+    activeCacheKey !== undefined && requestCacheKey === activeCacheKey;
+
+  const { fetchData, invalidate: invalidateActiveKey } =
+    createQueryFetchHandlers<T>({
+      data,
+      loading,
+      error,
+      getActiveKey,
+      canUpdateLocal,
+      ttl,
+      staleWhileRevalidate,
+      fetchInit,
+      fetchFn,
+    });
 
   function hydrateFromCache(cacheKey: string): void {
     const existing = cacheStore.get<T>(cacheKey);
@@ -64,13 +73,24 @@ export function createReactiveQuery<T>(
     }
   }
 
+  function deactivate(): void {
+    if (activeCacheKey !== undefined) {
+      cacheStore.releaseConsumer(activeCacheKey);
+    }
+    activeCacheKey = undefined;
+    activeUrl = undefined;
+    error.set(null);
+    data.set(null);
+    loading.set(false);
+  }
+
   function activateKey(keyValue: QueryKey): void {
     const next = resolveQueryKey(keyValue);
     if (next.cacheKey === activeCacheKey) {
       return;
     }
 
-    if (activeCacheKey) {
+    if (activeCacheKey !== undefined) {
       cacheStore.releaseConsumer(activeCacheKey);
     }
 
@@ -84,24 +104,37 @@ export function createReactiveQuery<T>(
     void fetchData(false);
   }
 
+  function observeKey(next: QueryKey | undefined): void {
+    if (next === undefined) {
+      deactivate();
+      return;
+    }
+    activateKey(next);
+  }
+
   destroyRef.onDestroy(() => {
-    if (activeCacheKey) {
+    if (activeCacheKey !== undefined) {
       cacheStore.releaseConsumer(activeCacheKey);
     }
   });
 
-  activateKey(key());
+  observeKey(key());
 
   effect(() => {
     const observedKey = key();
-    untracked(() => activateKey(observedKey));
+    untracked(() => observeKey(observedKey));
   });
 
   return {
     data: data.asReadonly(),
     loading: loading.asReadonly(),
     error: error.asReadonly(),
-    fetch: fetchData,
-    invalidate,
+    fetch: (force?) => (isActive() ? fetchData(force) : Promise.resolve()),
+    invalidate: () => {
+      if (!isActive()) {
+        return;
+      }
+      invalidateActiveKey();
+    },
   };
 }

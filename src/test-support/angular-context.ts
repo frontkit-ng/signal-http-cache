@@ -24,7 +24,7 @@ export type QueryFactoryOptions<T> = {
 };
 
 export type ReactiveQueryFactoryOptions<T> = {
-  key: Signal<QueryKey>;
+  key: Signal<QueryKey | undefined>;
   options?: Omit<QueryOptions, "method">;
   fetchFn?: typeof fetch;
 };

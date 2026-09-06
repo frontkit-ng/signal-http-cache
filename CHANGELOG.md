@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `createReactiveQuery` accepts `Signal<QueryKey | undefined>` — when the key is `undefined`, the query is inactive (no cache identity, no fetch).
+- Conditional reactive query examples and TTL reuse guidance in README.
+
+### Fixed
+
+- Reactive queries with an empty string key (`""`) no longer collide with the internal inactive sentinel.
+- README full-component example: delete mutation now calls `fetch(true)` after `invalidateKeys` to refresh the list (cache invalidation alone does not update live query signals).
+
 ## [0.4.0] - 2026-09-06
 
 ### Added
