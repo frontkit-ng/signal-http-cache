@@ -4,11 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-06
+
 ### Added
 
 - `createReactiveQuery(keySignal, options?, fetchFn?)` for reactive/parameterized query identity driven by a `Signal<QueryKey>`.
-- Automatic cache-aware fetch when a new serialized key becomes active (synchronously on construction, then on effect-scheduled key transitions).
-- Shared query fetch internals extracted for static and reactive query paths.
+- Automatic cache-aware fetch when a new serialized key becomes active — synchronously for the initial key, then on Angular effect-scheduled transitions. Intermediate coalesced signal writes may be skipped.
+- Shared TTL, stale-while-revalidate, and in-flight deduplication for every active key; mutation and cache behavior remain shared with existing queries.
+
+### Fixed
+
+- Reactive query ownership migrates safely between active keys; late settlement from a previous key cannot overwrite the current key's visible state.
+- `fetch()`, `fetch(true)`, and `invalidate()` always target the current active key at call time.
+
+### Compatibility
+
+- Angular 16–22 remain supported and tested. Peer dependency unchanged: `@angular/core >=16.0.0 <23.0.0`.
 
 ## [0.3.0] - 2026-09-05
 
