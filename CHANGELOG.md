@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-29
+
 ### Changed
 
 - Invalidating a cache key (`query.invalidate()` or mutation `invalidateKeys`) automatically refreshes queries that are already using that key. With `createReactiveQuery`, an active key refetches after invalidation. With `createQuery`, the first load is still manual; after you have called `fetch()` at least once, later invalidations trigger a background refresh.
@@ -12,6 +14,10 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 
 - README: invalidation and refresh behavior; todos example uses `invalidateKeys` for add and delete.
+
+### Compatibility
+
+- Angular 16–22 remain supported and tested. Peer dependency unchanged: `@angular/core >=16.0.0 <23.0.0`.
 
 ## [0.5.0] - 2026-09-06
 
