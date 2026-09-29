@@ -243,15 +243,14 @@ describe("createQuery behavior", () => {
     const first = scope.query.fetch();
     scope.query.invalidate();
     await first;
+    await flushMicrotasks();
 
-    expect(cacheStore.get("/abort-invalidate")?.inFlight).toBeUndefined();
-
-    const second = scope.query.fetch();
     expect(deferred.callCount()).toBe(2);
     await deferred.resolvePending("after");
-    await second;
+    await flushMicrotasks();
 
     expect(scope.query.data()).toBe("after");
+    expect(cacheStore.get("/abort-invalidate")?.inFlight).toBeUndefined();
 
     scope.destroy();
   });
@@ -383,7 +382,7 @@ describe("createQuery behavior", () => {
 });
 
 describe("createQuery invalidation", () => {
-  it("21. invalidate marks cache stale and subsequent fetch refetches", async () => {
+  it("21. invalidate marks cache stale and auto-refetches eligible query", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
 
@@ -402,11 +401,10 @@ describe("createQuery invalidation", () => {
     scope.query.invalidate();
     expect(cacheStore.get("/invalidate")?.timestamp).toBe(0);
     expect(cacheStore.get("/invalidate")?.data).toEqual({ v: 1 });
-
-    const refetch = scope.query.fetch();
     expect(deferred.callCount()).toBe(2);
+
     await deferred.resolvePending({ v: 2 });
-    await refetch;
+    await flushMicrotasks();
 
     expect(scope.query.data()).toEqual({ v: 2 });
 

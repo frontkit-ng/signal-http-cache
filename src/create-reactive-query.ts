@@ -7,6 +7,7 @@ import {
   Signal,
 } from "@angular/core";
 import { cacheStore } from "./cache-store";
+import { registerQueryParticipant } from "./invalidate-cache-key";
 import { createQueryFetchHandlers, resolveQueryKey } from "./query-fetch";
 import {
   HttpQuery,
@@ -40,6 +41,7 @@ export function createReactiveQuery<T>(
 
   let activeCacheKey: string | undefined;
   let activeUrl: string | undefined;
+  let releaseParticipant: (() => void) | undefined;
 
   const isActive = () => activeCacheKey !== undefined;
 
@@ -73,10 +75,15 @@ export function createReactiveQuery<T>(
     }
   }
 
-  function deactivate(): void {
-    if (activeCacheKey !== undefined) {
-      cacheStore.releaseConsumer(activeCacheKey);
+  function releaseActiveParticipant(): void {
+    if (releaseParticipant) {
+      releaseParticipant();
+      releaseParticipant = undefined;
     }
+  }
+
+  function deactivate(): void {
+    releaseActiveParticipant();
     activeCacheKey = undefined;
     activeUrl = undefined;
     error.set(null);
@@ -90,13 +97,13 @@ export function createReactiveQuery<T>(
       return;
     }
 
-    if (activeCacheKey !== undefined) {
-      cacheStore.releaseConsumer(activeCacheKey);
-    }
+    releaseActiveParticipant();
 
     activeCacheKey = next.cacheKey;
     activeUrl = next.url;
-    cacheStore.registerConsumer(activeCacheKey);
+    releaseParticipant = registerQueryParticipant(activeCacheKey, () => {
+      void fetchData(false);
+    });
 
     error.set(null);
     hydrateFromCache(activeCacheKey);
@@ -113,9 +120,7 @@ export function createReactiveQuery<T>(
   }
 
   destroyRef.onDestroy(() => {
-    if (activeCacheKey !== undefined) {
-      cacheStore.releaseConsumer(activeCacheKey);
-    }
+    releaseActiveParticipant();
   });
 
   observeKey(key());

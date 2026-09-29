@@ -120,11 +120,19 @@ await query.fetch(true);
 
 ### Invalidate Cache
 
-`invalidate()` marks the cache entry stale and aborts any active request for that query key. The query is not permanently blocked afterward — a later `fetch()` can proceed normally.
+When you invalidate a cache key, any in-flight request for that key is aborted and the entry is marked stale. Queries that are already using that key then refresh on their own—you do not need to call `fetch()` again for each one.
 
 ```ts
 query.invalidate();
 ```
+
+The same applies when a mutation lists keys in `invalidateKeys`.
+
+**`createQuery`** still does not fetch on its own when the component is created. You call `fetch()` (or `fetch(true)`) for the initial load. After that first call, invalidation of the key will refresh this query automatically. If you have never called `fetch()`, invalidation does not start the first request.
+
+**`createReactiveQuery`** refreshes while its key is active. When the key is `undefined`, the query is inactive and invalidation does not fetch.
+
+If no component is using a key anymore, or a static query has never been fetched, invalidation only affects cache state when an entry already exists—it does not start a new request.
 
 ---
 
@@ -296,13 +304,12 @@ export class TodosComponent implements OnInit {
   private todosQuery = createQuery<Todo[]>("/api/todos", { ttl: 60000 });
 
   addMutation = createMutation<Todo, { title: string }>("/api/todos", {
-    onSuccess: () => this.todosQuery.fetch(true),
+    invalidateKeys: ["/api/todos"],
   });
 
   deleteMutation = createMutation<void, string>((id) => `/api/todos/${id}`, {
     method: "DELETE",
     invalidateKeys: ["/api/todos"],
-    onSuccess: () => this.todosQuery.fetch(true),
   });
 
   todos = this.todosQuery.data;

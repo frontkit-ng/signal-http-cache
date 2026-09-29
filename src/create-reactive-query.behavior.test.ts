@@ -1,6 +1,7 @@
 import { Component } from "@angular/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cacheStore } from "./cache-store";
+import { createBaseMutation } from "./create-base-mutation";
 import { createReactiveQuery } from "./create-reactive-query";
 import {
   createReactiveQueryScope,
@@ -680,6 +681,52 @@ describe("createReactiveQuery behavior", () => {
     await flushMicrotasks();
 
     expect(scope.query.data()).toBe("B");
+    scope.destroy();
+  });
+
+  it("P1-2 active reactive query.invalidate auto-refreshes", async () => {
+    const deferred = createDeferredFetch();
+    const key = signal<string>("/p1-2");
+    const scope = createReactiveQueryScope<{ v: number }>({
+      key,
+      options: { ttl: 60_000 },
+      fetchFn: deferred.fetchFn,
+    });
+
+    await deferred.resolvePending({ v: 1 });
+    await flushMicrotasks();
+
+    scope.query.invalidate();
+    expect(deferred.callCount()).toBe(2);
+
+    await deferred.resolvePending({ v: 2 });
+    await flushMicrotasks();
+
+    expect(scope.query.data()).toEqual({ v: 2 });
+    scope.destroy();
+  });
+
+  it("P1-12 inactive reactive ignores external invalidate of prior key", async () => {
+    const deferred = createDeferredFetch();
+    const key = signal<string | undefined>("/p1-12-a");
+    const scope = createReactiveQueryScope<string>({
+      key,
+      fetchFn: deferred.fetchFn,
+    });
+
+    await deferred.resolvePending("a");
+    await flushMicrotasks();
+
+    key.set(undefined);
+    flushReactiveEffects();
+
+    const mutation = createBaseMutation<unknown, void>({
+      mutationFn: async () => ({}),
+      invalidateKeys: ["/p1-12-a"],
+    });
+    await mutation.mutate();
+
+    expect(deferred.callCount()).toBe(1);
     scope.destroy();
   });
 });

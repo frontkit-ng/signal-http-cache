@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Invalidating a cache key (`query.invalidate()` or mutation `invalidateKeys`) automatically refreshes queries that are already using that key. With `createReactiveQuery`, an active key refetches after invalidation. With `createQuery`, the first load is still manual; after you have called `fetch()` at least once, later invalidations trigger a background refresh.
+- Explicit invalidation is always treated as stale, including when `ttl` is `Infinity`.
+
+### Documentation
+
+- README: invalidation and refresh behavior; todos example uses `invalidateKeys` for add and delete.
+
 ## [0.5.0] - 2026-09-06
 
 ### Added

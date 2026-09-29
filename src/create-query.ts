@@ -1,5 +1,6 @@
 import { signal, DestroyRef, inject } from "@angular/core";
 import { cacheStore } from "./cache-store";
+import { registerQueryParticipant } from "./invalidate-cache-key";
 import { createQueryFetchHandlers, resolveQueryKey } from "./query-fetch";
 import {
   HttpQuery,
@@ -29,16 +30,7 @@ export function createQuery<T>(
 
   const destroyRef = inject(DestroyRef);
 
-  cacheStore.registerConsumer(cacheKey);
-
-  destroyRef.onDestroy(() => {
-    cacheStore.releaseConsumer(cacheKey);
-  });
-
-  const existing = cacheStore.get<T>(cacheKey);
-  if (existing?.data !== null && existing?.data !== undefined) {
-    data.set(existing.data);
-  }
+  let revalidationEligible = false;
 
   const { fetchData, invalidate } = createQueryFetchHandlers<T>({
     data,
@@ -52,11 +44,29 @@ export function createQuery<T>(
     fetchFn,
   });
 
+  const releaseParticipant = registerQueryParticipant(cacheKey, () => {
+    if (revalidationEligible) {
+      void fetchData(false);
+    }
+  });
+
+  destroyRef.onDestroy(() => {
+    releaseParticipant();
+  });
+
+  const existing = cacheStore.get<T>(cacheKey);
+  if (existing?.data !== null && existing?.data !== undefined) {
+    data.set(existing.data);
+  }
+
   return {
     data: data.asReadonly(),
     loading: loading.asReadonly(),
     error: error.asReadonly(),
-    fetch: fetchData,
+    fetch: (force?) => {
+      revalidationEligible = true;
+      return fetchData(force);
+    },
     invalidate,
   };
 }

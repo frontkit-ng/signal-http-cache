@@ -1,7 +1,12 @@
 import { WritableSignal } from "@angular/core";
 import { cacheStore } from "./cache-store";
+import { invalidateCacheKey } from "./invalidate-cache-key";
 import { HttpQueryError, QueryFetchInit, QueryKey } from "./types";
 import { parseJsonSafe, toHttpQueryError } from "./utils";
+
+export function isCacheEntryExpired(timestamp: number, ttl: number): boolean {
+  return timestamp === 0 || Date.now() - timestamp > ttl;
+}
 
 export function resolveQueryKey(key: QueryKey): { cacheKey: string; url: string } {
   if (typeof key === "string") {
@@ -203,7 +208,7 @@ export function createQueryFetchHandlers<T>(
     }
 
     if (cached && !force) {
-      const expired = Date.now() - cached.timestamp > ttl;
+      const expired = isCacheEntryExpired(cached.timestamp, ttl);
 
       if (!expired) {
         updateLocal(requestCacheKey, () => {
@@ -227,11 +232,7 @@ export function createQueryFetchHandlers<T>(
 
   function invalidate(): void {
     const { cacheKey } = getActiveKey();
-    const entry = cacheStore.get<T>(cacheKey);
-    if (entry) {
-      entry.abortController?.abort();
-      entry.timestamp = 0;
-    }
+    invalidateCacheKey(cacheKey);
   }
 
   return { fetchData, invalidate };

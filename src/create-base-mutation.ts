@@ -1,5 +1,5 @@
 import { signal, computed } from "@angular/core";
-import { cacheStore } from "./cache-store";
+import { invalidateCacheKey } from "./invalidate-cache-key";
 import {
   HttpMutation,
   HttpQueryError,
@@ -22,11 +22,7 @@ function resolveRetryDelay(
 function invalidateQueryKeys(keys: QueryKey[]): void {
   for (const key of keys) {
     const cacheKey = typeof key === "string" ? key : JSON.stringify(key);
-    const entry = cacheStore.get(cacheKey);
-    if (entry) {
-      entry.abortController?.abort();
-      entry.timestamp = 0;
-    }
+    invalidateCacheKey(cacheKey);
   }
 }
 
