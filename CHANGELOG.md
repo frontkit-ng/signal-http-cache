@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `HttpQuery.isFetching` — `true` while this query instance is participating in a GET for its current key.
+- `HttpQuery.isLoading` — `true` for blocking initial load (no successful response yet for the current key). Background revalidation, invalidation refresh, and force refresh with existing data do not set `isLoading` to `true`.
+
+### Changed
+
+- `HttpQuery.loading` remains available with its existing behavior through the pre-1.0 line. Prefer `isLoading` and `isFetching` for new code.
+
+### Deprecated
+
+- `HttpQuery.loading` — use `isLoading` for blocking loading UI or `isFetching` for active request participation. Planned for removal in **1.0.0**.
+
 ## [0.6.0] - 2026-09-29
 
 ### Changed

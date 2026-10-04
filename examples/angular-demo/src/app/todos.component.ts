@@ -12,7 +12,7 @@ interface Todo {
   selector: 'app-todos',
   standalone: true,
   template: `
-    @if (loading()) {
+    @if (isLoading()) {
     <div>Loading...</div>
     } @if (error()) {
     <div style="color: red">{{ error()?.message }}</div>
@@ -82,7 +82,7 @@ export class TodosComponent implements OnInit {
   );
 
   todos = this.todosQuery.data;
-  loading = this.todosQuery.loading;
+  isLoading = this.todosQuery.isLoading;
   error = this.todosQuery.error;
 
   ngOnInit() {

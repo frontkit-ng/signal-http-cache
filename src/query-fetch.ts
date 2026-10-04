@@ -25,11 +25,14 @@ function isAbortError(e: unknown): boolean {
 export type QueryFetchHandlers<T> = {
   fetchData(force?: boolean): Promise<void>;
   invalidate(): void;
+  resetParticipation(): void;
 };
 
 export type CreateQueryFetchOptions<T> = {
   data: WritableSignal<T | null>;
   loading: WritableSignal<boolean>;
+  isFetching: WritableSignal<boolean>;
+  hasResolvedData: WritableSignal<boolean>;
   error: WritableSignal<HttpQueryError | null>;
   getActiveKey: () => { cacheKey: string; url: string };
   canUpdateLocal: (requestCacheKey: string) => boolean;
@@ -45,6 +48,8 @@ export function createQueryFetchHandlers<T>(
   const {
     data,
     loading,
+    isFetching,
+    hasResolvedData,
     error,
     getActiveKey,
     canUpdateLocal,
@@ -54,6 +59,8 @@ export function createQueryFetchHandlers<T>(
     fetchFn,
   } = options;
 
+  let activeParticipation: Promise<T> | null = null;
+
   function updateLocal(
     requestCacheKey: string,
     update: () => void
@@ -61,6 +68,30 @@ export function createQueryFetchHandlers<T>(
     if (canUpdateLocal(requestCacheKey)) {
       update();
     }
+  }
+
+  function beginParticipation(
+    requestCacheKey: string,
+    promise: Promise<T>
+  ): void {
+    activeParticipation = promise;
+    updateLocal(requestCacheKey, () => isFetching.set(true));
+  }
+
+  function endParticipation(
+    requestCacheKey: string,
+    promise: Promise<T>
+  ): void {
+    if (activeParticipation !== promise) {
+      return;
+    }
+    activeParticipation = null;
+    updateLocal(requestCacheKey, () => isFetching.set(false));
+  }
+
+  function resetParticipation(): void {
+    activeParticipation = null;
+    isFetching.set(false);
   }
 
   function clearActiveRequestIfCurrent(
@@ -102,6 +133,8 @@ export function createQueryFetchHandlers<T>(
     inFlightPromise.catch(() => {
       // Avoid unhandled rejection when this attempt has no joiners.
     });
+
+    beginParticipation(requestCacheKey, inFlightPromise);
 
     const settleInFlight = (
       outcome: "resolve" | "reject",
@@ -155,7 +188,10 @@ export function createQueryFetchHandlers<T>(
           abortController: undefined,
         });
         settleInFlight("resolve", json);
-        updateLocal(requestCacheKey, () => data.set(json));
+        updateLocal(requestCacheKey, () => {
+          data.set(json);
+          hasResolvedData.set(true);
+        });
       } else {
         settleInFlight(
           "reject",
@@ -179,6 +215,7 @@ export function createQueryFetchHandlers<T>(
       updateLocal(requestCacheKey, () => error.set(toHttpQueryError(e)));
     } finally {
       updateLocal(requestCacheKey, () => loading.set(false));
+      endParticipation(requestCacheKey, inFlightPromise);
     }
   }
 
@@ -191,17 +228,22 @@ export function createQueryFetchHandlers<T>(
       if (force) {
         cached.abortController?.abort();
       } else {
+        const joined = cached.inFlight;
+        beginParticipation(requestCacheKey, joined);
         try {
-          const result = await cached.inFlight;
+          const result = await joined;
           updateLocal(requestCacheKey, () => {
             error.set(null);
             data.set(result);
+            hasResolvedData.set(true);
           });
         } catch (e) {
           if (isAbortError(e)) {
             return;
           }
           updateLocal(requestCacheKey, () => error.set(toHttpQueryError(e)));
+        } finally {
+          endParticipation(requestCacheKey, joined);
         }
         return;
       }
@@ -214,6 +256,7 @@ export function createQueryFetchHandlers<T>(
         updateLocal(requestCacheKey, () => {
           error.set(null);
           data.set(cached.data);
+          hasResolvedData.set(true);
         });
         return;
       }
@@ -221,6 +264,7 @@ export function createQueryFetchHandlers<T>(
         updateLocal(requestCacheKey, () => {
           error.set(null);
           data.set(cached.data);
+          hasResolvedData.set(true);
         });
         void revalidate();
         return;
@@ -235,5 +279,5 @@ export function createQueryFetchHandlers<T>(
     invalidateCacheKey(cacheKey);
   }
 
-  return { fetchData, invalidate };
+  return { fetchData, invalidate, resetParticipation };
 }

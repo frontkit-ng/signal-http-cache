@@ -21,14 +21,14 @@ describe("createQuery behavior", () => {
     });
 
     const fetchPromise = scope.query.fetch();
-    expect(scope.query.loading()).toBe(true);
+    expect(scope.query.isLoading()).toBe(true);
     expect(deferred.callCount()).toBe(1);
 
     await deferred.resolvePending({ id: 1 });
     await fetchPromise;
 
     expect(scope.query.data()).toEqual({ id: 1 });
-    expect(scope.query.loading()).toBe(false);
+    expect(scope.query.isLoading()).toBe(false);
     expect(scope.query.error()).toBeNull();
     expect(cacheStore.has("/users")).toBe(true);
     expect(cacheStore.get("/users")?.inFlight).toBeUndefined();
@@ -200,7 +200,7 @@ describe("createQuery behavior", () => {
     await fetchPromise;
 
     expect(scope.query.error()?.message).toContain("HTTP 500");
-    expect(scope.query.loading()).toBe(false);
+    expect(scope.query.isLoading()).toBe(false);
     expect(cacheStore.get("/fail")?.inFlight).toBeUndefined();
 
     scope.destroy();

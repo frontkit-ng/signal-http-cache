@@ -55,7 +55,8 @@ function getPlatformEnvironmentInjector(): EnvironmentInjector {
   return platformEnvironmentInjector;
 }
 
-function ensureReactiveTestEnvironment(): void {
+/** Initialize TestBed for reactive-query tests (call before mixing with createQueryScope in one file). */
+export function ensureReactiveTestEnvironment(): void {
   if (reactiveTestEnvironmentReady) {
     return;
   }

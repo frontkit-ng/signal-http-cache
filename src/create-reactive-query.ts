@@ -1,5 +1,6 @@
 import {
   signal,
+  computed,
   DestroyRef,
   inject,
   effect,
@@ -35,6 +36,9 @@ export function createReactiveQuery<T>(
   const { ttl, staleWhileRevalidate } = library;
   const data = signal<T | null>(null);
   const loading = signal(false);
+  const isFetching = signal(false);
+  const hasResolvedData = signal(false);
+  const isLoading = computed(() => isFetching() && !hasResolvedData());
   const error = signal<HttpQueryError | null>(null);
 
   const destroyRef = inject(DestroyRef);
@@ -53,10 +57,12 @@ export function createReactiveQuery<T>(
   const canUpdateLocal = (requestCacheKey: string) =>
     activeCacheKey !== undefined && requestCacheKey === activeCacheKey;
 
-  const { fetchData, invalidate: invalidateActiveKey } =
+  const { fetchData, invalidate: invalidateActiveKey, resetParticipation } =
     createQueryFetchHandlers<T>({
       data,
       loading,
+      isFetching,
+      hasResolvedData,
       error,
       getActiveKey,
       canUpdateLocal,
@@ -70,8 +76,10 @@ export function createReactiveQuery<T>(
     const existing = cacheStore.get<T>(cacheKey);
     if (existing?.data !== null && existing?.data !== undefined) {
       data.set(existing.data);
+      hasResolvedData.set(true);
     } else {
       data.set(null);
+      hasResolvedData.set(false);
     }
   }
 
@@ -84,11 +92,13 @@ export function createReactiveQuery<T>(
 
   function deactivate(): void {
     releaseActiveParticipant();
+    resetParticipation();
     activeCacheKey = undefined;
     activeUrl = undefined;
     error.set(null);
     data.set(null);
     loading.set(false);
+    hasResolvedData.set(false);
   }
 
   function activateKey(keyValue: QueryKey): void {
@@ -98,6 +108,7 @@ export function createReactiveQuery<T>(
     }
 
     releaseActiveParticipant();
+    resetParticipation();
 
     activeCacheKey = next.cacheKey;
     activeUrl = next.url;
@@ -133,6 +144,8 @@ export function createReactiveQuery<T>(
   return {
     data: data.asReadonly(),
     loading: loading.asReadonly(),
+    isLoading,
+    isFetching: isFetching.asReadonly(),
     error: error.asReadonly(),
     fetch: (force?) => (isActive() ? fetchData(force) : Promise.resolve()),
     invalidate: () => {

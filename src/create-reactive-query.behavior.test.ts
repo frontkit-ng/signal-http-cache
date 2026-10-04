@@ -597,18 +597,18 @@ describe("createReactiveQuery behavior", () => {
     flushReactiveEffects();
 
     expect(scope.query.data()).toBeNull();
-    expect(scope.query.loading()).toBe(true);
+    expect(scope.query.isLoading()).toBe(true);
 
     resolveA!(new Response(JSON.stringify("A-late"), { status: 200 }));
     await flushMicrotasks();
 
-    expect(scope.query.loading()).toBe(true);
+    expect(scope.query.isLoading()).toBe(true);
     expect(scope.query.data()).toBeNull();
 
     await deferredB.resolvePending("B-data");
     await flushMicrotasks();
 
-    expect(scope.query.loading()).toBe(false);
+    expect(scope.query.isLoading()).toBe(false);
     expect(scope.query.data()).toBe("B-data");
 
     scope.destroy();
@@ -636,7 +636,8 @@ describe("createReactiveQuery behavior", () => {
     expect(deferred.callCount()).toBe(1);
 
     const forced = scope.query.fetch(true);
-    expect(scope.query.loading()).toBe(true);
+    expect(scope.query.isLoading()).toBe(false);
+    expect(scope.query.isFetching()).toBe(true);
     await deferred.resolvePending("second");
     await forced;
     await flushMicrotasks();

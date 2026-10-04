@@ -1,4 +1,4 @@
-import { signal, DestroyRef, inject } from "@angular/core";
+import { computed, signal, DestroyRef, inject } from "@angular/core";
 import { cacheStore } from "./cache-store";
 import { registerQueryParticipant } from "./invalidate-cache-key";
 import { createQueryFetchHandlers, resolveQueryKey } from "./query-fetch";
@@ -26,6 +26,9 @@ export function createQuery<T>(
   const { ttl, staleWhileRevalidate } = library;
   const data = signal<T | null>(null);
   const loading = signal(false);
+  const isFetching = signal(false);
+  const hasResolvedData = signal(false);
+  const isLoading = computed(() => isFetching() && !hasResolvedData());
   const error = signal<HttpQueryError | null>(null);
 
   const destroyRef = inject(DestroyRef);
@@ -35,6 +38,8 @@ export function createQuery<T>(
   const { fetchData, invalidate } = createQueryFetchHandlers<T>({
     data,
     loading,
+    isFetching,
+    hasResolvedData,
     error,
     getActiveKey: () => ({ cacheKey, url }),
     canUpdateLocal: () => true,
@@ -57,11 +62,14 @@ export function createQuery<T>(
   const existing = cacheStore.get<T>(cacheKey);
   if (existing?.data !== null && existing?.data !== undefined) {
     data.set(existing.data);
+    hasResolvedData.set(true);
   }
 
   return {
     data: data.asReadonly(),
     loading: loading.asReadonly(),
+    isLoading,
+    isFetching: isFetching.asReadonly(),
     error: error.asReadonly(),
     fetch: (force?) => {
       revalidationEligible = true;

@@ -24,7 +24,7 @@ A Signal-based HTTP caching library for Angular.
 
 - **Mutations for POST/PUT/PATCH/DELETE**
 
-- **Retry with configurable delay**
+- **Configurable mutation retry**
 
 - **Safe force-refresh concurrency**
 
@@ -133,6 +133,28 @@ The same applies when a mutation lists keys in `invalidateKeys`.
 **`createReactiveQuery`** refreshes while its key is active. When the key is `undefined`, the query is inactive and invalidation does not fetch.
 
 If no component is using a key anymore, or a static query has never been fetched, invalidation only affects cache state when an entry already exists—it does not start a new request.
+
+### Query state: `isLoading` and `isFetching`
+
+- **`isLoading()`** — blocking initial load (no successful response yet for the current key). Use for initial spinners and empty states.
+- **`isFetching()`** — this query instance is participating in a GET for its active key, including background refresh. Use when you need to show activity without hiding existing data.
+
+During stale-while-revalidate or invalidation refresh, `isFetching()` is typically `true` while `isLoading()` stays `false`.
+
+```html
+@if (usersQuery.isLoading()) {
+  <p>Loading users…</p>
+} @else if (usersQuery.data(); as users) {
+  <ul>
+    @for (user of users; track user.id) {
+      <li>{{ user.name }}</li>
+    }
+  </ul>
+  @if (usersQuery.isFetching() && !usersQuery.isLoading()) {
+    <span class="refresh-hint">Updating…</span>
+  }
+}
+```
 
 ---
 
@@ -276,7 +298,7 @@ interface Todo {
   selector: "app-todos",
   standalone: true,
   template: `
-    @if (loading()) {
+    @if (isLoading()) {
     <p>Loading...</p>
     } @if (todos()) {
     <ul>
@@ -313,7 +335,7 @@ export class TodosComponent implements OnInit {
   });
 
   todos = this.todosQuery.data;
-  loading = this.todosQuery.loading;
+  isLoading = this.todosQuery.isLoading;
 
   ngOnInit() {
     this.todosQuery.fetch();

@@ -28,7 +28,7 @@ describe("createReactiveQuery inactive state", () => {
     expect(deferred.callCount()).toBe(0);
     expect(scope.query.data()).toBeNull();
     expect(scope.query.error()).toBeNull();
-    expect(scope.query.loading()).toBe(false);
+    expect(scope.query.isLoading()).toBe(false);
     expect(cacheStore.size()).toBe(0);
     scope.destroy();
   });
@@ -97,7 +97,7 @@ describe("createReactiveQuery inactive state", () => {
 
     expect(scope.query.data()).toBeNull();
     expect(scope.query.error()).toBeNull();
-    expect(scope.query.loading()).toBe(false);
+    expect(scope.query.isLoading()).toBe(false);
     expect(cacheStore.getConsumerCount("/i4-a")).toBe(0);
     expect(cacheStore.has("/i4-a")).toBe(false);
 
@@ -166,7 +166,7 @@ describe("createReactiveQuery inactive state", () => {
     flushReactiveEffects();
 
     expect(cacheStore.has("/i7-a")).toBe(false);
-    expect(scope.query.loading()).toBe(false);
+    expect(scope.query.isLoading()).toBe(false);
 
     await deferred.resolvePending("late");
     await flushMicrotasks();
@@ -287,7 +287,8 @@ describe("createReactiveQuery inactive state", () => {
     key.set("/i11-b");
     flushReactiveEffects();
     expect(deferred.callCount()).toBe(1);
-    expect(scope.query.loading()).toBe(true);
+    expect(scope.query.isLoading()).toBe(false);
+    expect(scope.query.isFetching()).toBe(true);
 
     await deferred.resolvePending("fresh");
     await flushMicrotasks();

@@ -9,7 +9,14 @@ export interface HttpQueryError {
 }
 export interface HttpQuery<T> {
   data: Signal<T | null>;
+  /**
+   * @deprecated Use `isLoading` for blocking loading UI or `isFetching` for active
+   * request participation. Behavior differs from both; not a drop-in alias.
+   * Planned for removal in 1.0.0.
+   */
   loading: Signal<boolean>;
+  isLoading: Signal<boolean>;
+  isFetching: Signal<boolean>;
   error: Signal<HttpQueryError | null>;
   fetch(force?: boolean): Promise<void>;
   invalidate(): void;
