@@ -13,6 +13,21 @@ describe("public API boundary", () => {
   it("exports createReactiveQuery", () => {
     expect(typeof publicApi.createReactiveQuery).toBe("function");
   });
+
+  it("does not export internal QUERY_HTTP_EXECUTOR", () => {
+    expect("QUERY_HTTP_EXECUTOR" in publicApi).toBe(false);
+  });
+
+  it("does not export loader/fetch option machinery types as values", () => {
+    expect("LoaderQueryOptions" in publicApi).toBe(false);
+    expect("FetchQueryOptions" in publicApi).toBe(false);
+    expect("assertNoFetchInitOnLoaderOptions" in publicApi).toBe(false);
+    expect("splitLoaderQueryOptions" in publicApi).toBe(false);
+  });
+
+  it("exports QueryLoader-related types through createQuery usage", () => {
+    expect(typeof publicApi.createQuery).toBe("function");
+  });
 });
 
 describe("HttpQuery surface", () => {

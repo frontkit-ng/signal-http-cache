@@ -8,6 +8,13 @@ All notable changes to this project will be documented in this file.
 
 - `HttpQuery.isFetching` — `true` while this query instance is participating in a GET for its current key.
 - `HttpQuery.isLoading` — `true` for blocking initial load (no successful response yet for the current key). Background revalidation, invalidation refresh, and force refresh with existing data do not set `isLoading` to `true`.
+- Query `loader` option and `QueryLoader` / `QueryLoaderParams` types (`abortSignal` for cancellation).
+- Secondary entry `@frontkit-ng/signal-http-cache/http-client` with `provideSignalHttpCacheHttpClient()` for opt-in `HttpClient` query transport (Angular 16–22).
+- Optional peer `@angular/common` for the `/http-client` entry.
+
+### Notes
+
+- `provideSignalHttpCacheHttpClient()` applies to query factories only; `createMutation` default transport is unchanged (`fetch` or explicit `fetchFn`).
 
 ### Changed
 

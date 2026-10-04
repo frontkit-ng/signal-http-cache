@@ -5,6 +5,8 @@ export { createMutation } from "./create-mutation";
 export type {
   QueryKey,
   QueryOptions,
+  QueryLoader,
+  QueryLoaderParams,
   HttpQuery,
   HttpQueryError,
   MutationOptions,

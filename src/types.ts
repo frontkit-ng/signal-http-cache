@@ -31,6 +31,23 @@ export type QueryFetchInit = Omit<RequestInit, "method" | "body">;
 
 export type QueryOptions = QueryLibraryOptions & QueryFetchInit;
 
+export interface QueryLoaderParams {
+  key: QueryKey;
+  abortSignal: AbortSignal;
+}
+
+export type QueryLoader<T> = (
+  params: QueryLoaderParams
+) =>
+  | Promise<T>
+  | {
+      subscribe(observer: {
+        next?: (value: T) => void;
+        error?: (err: unknown) => void;
+        complete?: () => void;
+      }): { unsubscribe(): void };
+    };
+
 export function splitQueryOptions(
   options: Omit<QueryOptions, "method"> = {}
 ): {

@@ -57,6 +57,19 @@ export function parseJsonSafe<T>(text: string): T {
   }
 }
 
+export function transportFailureToHttpQueryError(failure: {
+  status: number;
+  statusText: string;
+  cause?: unknown;
+}): HttpQueryError {
+  return toHttpQueryError({
+    message: `HTTP ${failure.status}`,
+    status: failure.status,
+    statusText: failure.statusText,
+    cause: failure.cause,
+  });
+}
+
 export function toHttpQueryError(
   err: unknown,
   defaultMessage = "Request failed"

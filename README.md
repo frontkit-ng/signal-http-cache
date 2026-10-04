@@ -18,7 +18,7 @@ A Signal-based HTTP caching library for Angular.
 
 - **Pure Signals, no RxJS required**
 
-- **Native `fetch` or provide your own transport (for example HttpClient via a fetch adapter)**
+- **Native `fetch`, optional Angular `HttpClient` for queries, custom `fetchFn`, or a `loader`**
 
 - **Auto cleanup via Angular `DestroyRef`**
 
@@ -356,121 +356,54 @@ export class TodosComponent implements OnInit {
 
 ---
 
-## Using Angular HttpClient (Optional)
+## Transport
 
-By default, the library uses the native browser `fetch` API. To use Angular's `HttpClient` instead (for interceptors, auth tokens, etc.), create an adapter:
+### Default: native `fetch`
 
-This is **optional** - the library does **not** require `HttpClient`.
-
-### HttpClient Adapter
-
-Call `inject(HttpClient)` inside an injection context, then return a fetch-compatible function that captures the client:
+`createQuery` and `createReactiveQuery` use the browser `fetch` API with **no extra setup**:
 
 ```ts
-// http-client-adapter.ts
-
-import { inject } from "@angular/core";
-import { HttpClient, HttpErrorResponse } from "@angular/common/http";
-import { firstValueFrom, catchError, of } from "rxjs";
-
-export function createHttpClientFetchFn() {
-  const http = inject(HttpClient);
-
-  return (url: string, init?: RequestInit): Promise<Response> => {
-    const method = init?.method ?? "GET";
-    const headers = init?.headers as Record<string, string> | undefined;
-
-    let body: unknown = undefined;
-    if (init?.body) {
-      if (typeof init.body === "string") {
-        try {
-          body = JSON.parse(init.body);
-        } catch {
-          body = init.body;
-        }
-      } else {
-        body = init.body;
-      }
-    }
-
-    return firstValueFrom(
-      http
-        .request<unknown>(method, url, {
-          body,
-          headers,
-          observe: "response",
-          responseType: "json",
-        })
-        .pipe(
-          catchError((err: HttpErrorResponse) => {
-            return of({
-              ok: false,
-              status: err.status,
-              statusText: err.statusText,
-              body: err.error,
-            });
-          })
-        )
-    ).then((response) => {
-      const responseBody = response.body;
-      const bodyText =
-        typeof responseBody === "string"
-          ? responseBody
-          : JSON.stringify(responseBody ?? "");
-
-      return {
-        ok: response.ok ?? (response.status >= 200 && response.status < 300),
-        status: response.status,
-        statusText: response.statusText,
-        json: () => Promise.resolve(responseBody),
-        text: () => Promise.resolve(bodyText),
-      } as Response;
-    });
-  };
-}
+users = createReactiveQuery<User[]>("/api/users");
 ```
 
-### Using the Adapter
+### Optional: Angular `HttpClient` for queries
 
-Create the fetch function in an injection context, then pass it to `createQuery` or `createMutation`:
+Add the library provider **next to your existing** `provideHttpClient()` configuration (do not register `HttpClient` twice):
 
 ```ts
-import { Component } from "@angular/core";
-import { createQuery, createMutation } from "@frontkit-ng/signal-http-cache";
-import { createHttpClientFetchFn } from "./http-client-adapter";
+import { ApplicationConfig } from "@angular/core";
+import { provideHttpClient, withInterceptors } from "@angular/common/http";
+import { provideSignalHttpCacheHttpClient } from "@frontkit-ng/signal-http-cache/http-client";
 
-@Component({ /* ... */ })
-export class UsersComponent {
-  private httpFetch = createHttpClientFetchFn();
-
-  private users = createQuery<User[]>(
-    "/api/users",
-    { ttl: 60000 },
-    this.httpFetch
-  );
-
-  addUser = createMutation<User, { name: string }>(
-    "/api/users",
-    { onSuccess: () => this.users.fetch(true) },
-    this.httpFetch
-  );
-}
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideHttpClient(withInterceptors([authInterceptor])),
+    provideSignalHttpCacheHttpClient(),
+  ],
+};
 ```
 
----
+Query call sites stay the same. Interceptors and `HttpClient` configuration apply to cached GET queries.
 
-## When to use this library vs Angular `httpResource()`
+`provideSignalHttpCacheHttpClient()` affects **`createQuery` / `createReactiveQuery` only**. `createMutation` continues to use `fetch` by default (or an explicit third-argument `fetchFn`).
 
-On Angular versions that include native resource APIs, `httpResource()` is a good fit when the main requirement is reactive HttpClient-backed loading for an individual resource.
+Requires optional peer `@angular/common` when using the `/http-client` entry.
 
-`signal-http-cache` adds value when the application needs the capabilities implemented here:
+### Custom `fetchFn`
 
-- shared cache state across multiple consumers of the same query key
-- TTL and stale-while-revalidate behavior
-- in-flight request deduplication
-- mutation-driven cache invalidation
+Pass a `fetch`-compatible function as the third argument to override transport for that query instance (mutually exclusive with `loader`).
 
-Native Angular resource APIs are optional comparison points for newer Angular apps. They are not prerequisites for installing or using this package.
+### `loader` (API services)
+
+Use a one-shot loader when the request should run through your own service (for example an existing `HttpClient` API wrapper). The loader receives `QueryLoaderParams` with `key` and `abortSignal`:
+
+```ts
+users = createReactiveQuery<User[]>("/api/users", {
+  loader: ({ abortSignal }) => usersApi.getUsers({ signal: abortSignal }),
+});
+```
+
+Loader options include cache settings (`ttl`, `staleWhileRevalidate`) only — not `RequestInit` fields. If the loader returns an Angular `Observable`, only the **first** emitted value is used (one-shot semantics).
 
 ---
 

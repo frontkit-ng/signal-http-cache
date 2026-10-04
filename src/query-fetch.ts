@@ -1,8 +1,19 @@
 import { WritableSignal } from "@angular/core";
 import { cacheStore } from "./cache-store";
 import { invalidateCacheKey } from "./invalidate-cache-key";
-import { HttpQueryError, QueryFetchInit, QueryKey } from "./types";
-import { parseJsonSafe, toHttpQueryError } from "./utils";
+import { runQueryLoader } from "./query-loader";
+import type { QueryHttpExecutor } from "./internal/http-transport-types";
+import {
+  HttpQueryError,
+  QueryFetchInit,
+  QueryKey,
+  QueryLoader,
+} from "./types";
+import {
+  parseJsonSafe,
+  toHttpQueryError,
+  transportFailureToHttpQueryError,
+} from "./utils";
 
 export function isCacheEntryExpired(timestamp: number, ttl: number): boolean {
   return timestamp === 0 || Date.now() - timestamp > ttl;
@@ -34,12 +45,13 @@ export type CreateQueryFetchOptions<T> = {
   isFetching: WritableSignal<boolean>;
   hasResolvedData: WritableSignal<boolean>;
   error: WritableSignal<HttpQueryError | null>;
-  getActiveKey: () => { cacheKey: string; url: string };
+  getActiveKey: () => { cacheKey: string; url: string; queryKey: QueryKey };
   canUpdateLocal: (requestCacheKey: string) => boolean;
   ttl: number;
   staleWhileRevalidate: boolean;
   fetchInit: QueryFetchInit;
-  fetchFn: typeof fetch;
+  queryExecutor: QueryHttpExecutor;
+  loader?: QueryLoader<T>;
 };
 
 export function createQueryFetchHandlers<T>(
@@ -56,7 +68,8 @@ export function createQueryFetchHandlers<T>(
     ttl,
     staleWhileRevalidate,
     fetchInit,
-    fetchFn,
+    queryExecutor,
+    loader,
   } = options;
 
   let activeParticipation: Promise<T> | null = null;
@@ -112,8 +125,31 @@ export function createQueryFetchHandlers<T>(
     });
   }
 
+  async function executeRequest(
+    abortSignal: AbortSignal
+  ): Promise<T> {
+    const { url, queryKey } = getActiveKey();
+
+    if (loader) {
+      return runQueryLoader(loader, { key: queryKey, abortSignal });
+    }
+
+    const result = await queryExecutor({
+      url,
+      init: fetchInit,
+      signal: abortSignal,
+    });
+
+    if (!result.ok) {
+      const failure = transportFailureToHttpQueryError(result);
+      throw failure;
+    }
+
+    return parseJsonSafe<T>(result.bodyText);
+  }
+
   async function revalidate(): Promise<void> {
-    const { cacheKey, url } = getActiveKey();
+    const { cacheKey } = getActiveKey();
     const requestCacheKey = cacheKey;
     const abortController = new AbortController();
 
@@ -163,20 +199,7 @@ export function createQueryFetchHandlers<T>(
     });
 
     try {
-      const response = await fetchFn(url, {
-        ...fetchInit,
-        method: "GET",
-        signal: abortController.signal,
-      });
-      if (!response.ok) {
-        throw {
-          message: `HTTP ${response.status}`,
-          status: response.status,
-          statusText: response.statusText,
-        };
-      }
-
-      const json = parseJsonSafe<T>(await response.text());
+      const json = await executeRequest(abortController.signal);
       const current = cacheStore.get<T>(cacheKey);
 
       if (current?.inFlight === inFlightPromise) {

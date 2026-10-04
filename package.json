@@ -18,6 +18,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./http-client": {
+      "types": "./dist/http-client/index.d.ts",
+      "import": "./dist/http-client/index.js",
+      "default": "./dist/http-client/index.js"
     }
   },
   "sideEffects": false,
@@ -33,12 +38,20 @@
     "test:typecheck": "tsc -p tsconfig.test.json --noEmit",
     "test:watch": "vitest --watch",
     "coverage": "vitest run --coverage",
-    "test:compat": "node compat/scripts/run-compat.mjs --all"
+    "test:compat": "node compat/scripts/run-compat.mjs --all",
+    "test:pack-exports": "node scripts/verify-pack-exports.mjs"
   },
   "peerDependencies": {
-    "@angular/core": ">=16.0.0 <23.0.0"
+    "@angular/core": ">=16.0.0 <23.0.0",
+    "@angular/common": ">=16.0.0 <23.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@angular/common": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@angular/common": "^21.2.22",
     "@angular/compiler": "^21.2.22",
     "@angular/core": "^21.0.1",
     "@angular/platform-browser": "^21.2.22",

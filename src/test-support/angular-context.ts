@@ -15,17 +15,21 @@ import {
 import { createQuery } from "../create-query";
 import { createReactiveQuery } from "../create-reactive-query";
 import type { HttpQuery } from "../types";
-import type { QueryKey, QueryOptions } from "../types";
+import type {
+  FetchQueryOptions,
+  LoaderQueryOptions,
+} from "../internal/loader-query-options";
+import type { QueryKey } from "../types";
 
 export type QueryFactoryOptions<T> = {
   key: QueryKey;
-  options?: Omit<QueryOptions, "method">;
+  options?: LoaderQueryOptions<T> | FetchQueryOptions;
   fetchFn?: typeof fetch;
 };
 
 export type ReactiveQueryFactoryOptions<T> = {
   key: Signal<QueryKey | undefined>;
-  options?: Omit<QueryOptions, "method">;
+  options?: LoaderQueryOptions<T> | FetchQueryOptions;
   fetchFn?: typeof fetch;
 };
 
@@ -81,9 +85,16 @@ export function createQueryScope<T>(
     getPlatformEnvironmentInjector(),
     "query-scope"
   );
-  const query = runInInjectionContext(injector, () =>
-    createQuery<T>(config.key, config.options ?? {}, config.fetchFn ?? fetch)
-  );
+  const query = runInInjectionContext(injector, () => {
+    const options = config.options ?? {};
+    if (config.fetchFn !== undefined) {
+      return createQuery<T>(config.key, options as FetchQueryOptions, config.fetchFn);
+    }
+    if ("loader" in options && typeof options.loader === "function") {
+      return createQuery<T>(config.key, options as LoaderQueryOptions<T>);
+    }
+    return createQuery<T>(config.key, options as FetchQueryOptions);
+  });
 
   return {
     injector,
@@ -104,13 +115,20 @@ export function createReactiveQueryScope<T>(
   TestBed.configureTestingModule({});
 
   const injector = TestBed.inject(EnvironmentInjector);
-  const query = runInInjectionContext(injector, () =>
-    createReactiveQuery<T>(
-      config.key,
-      config.options ?? {},
-      config.fetchFn ?? fetch
-    )
-  );
+  const query = runInInjectionContext(injector, () => {
+    const options = config.options ?? {};
+    if (config.fetchFn !== undefined) {
+      return createReactiveQuery<T>(
+        config.key,
+        options as FetchQueryOptions,
+        config.fetchFn
+      );
+    }
+    if ("loader" in options && typeof options.loader === "function") {
+      return createReactiveQuery<T>(config.key, options as LoaderQueryOptions<T>);
+    }
+    return createReactiveQuery<T>(config.key, options as FetchQueryOptions);
+  });
 
   return {
     injector,

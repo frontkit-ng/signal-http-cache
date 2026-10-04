@@ -92,6 +92,7 @@ export function createSequentialFetch(
 }
 
 export async function flushMicrotasks(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let i = 0; i < 4; i++) {
+    await Promise.resolve();
+  }
 }

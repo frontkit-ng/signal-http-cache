@@ -13,9 +13,13 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const compatRoot = resolve(__dirname, "..");
 const repoRoot = resolve(compatRoot, "..");
-const templateRoot = join(compatRoot, "consumer");
 const workspacesRoot = join(compatRoot, ".workspaces");
 const packDir = join(workspacesRoot, "pack");
+
+const CONSUMER_TEMPLATES = [
+  { id: "root", dir: "consumer" },
+  { id: "http-client", dir: "consumer-http-client" },
+];
 
 const matrix = JSON.parse(
   readFileSync(join(compatRoot, "matrix.json"), "utf8")
@@ -23,6 +27,7 @@ const matrix = JSON.parse(
 
 function parseArgs(argv) {
   const majors = [];
+  const consumers = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--major") {
@@ -34,10 +39,24 @@ function parseArgs(argv) {
       continue;
     }
     if (arg === "--all") {
-      return matrix.majors.map((entry) => entry.major);
+      return {
+        majors: matrix.majors.map((entry) => entry.major),
+        consumers: CONSUMER_TEMPLATES.map((t) => t.id),
+      };
+    }
+    if (arg === "--consumer") {
+      consumers.push(argv[++i]);
+      continue;
+    }
+    if (arg.startsWith("--consumer=")) {
+      consumers.push(arg.split("=")[1]);
+      continue;
     }
   }
-  return majors;
+  return {
+    majors,
+    consumers: consumers.length > 0 ? consumers : CONSUMER_TEMPLATES.map((t) => t.id),
+  };
 }
 
 function run(command, options = {}) {
@@ -142,7 +161,8 @@ function packLibrary() {
   return join(packDir, tarballName);
 }
 
-function copyTemplate(workspaceDir) {
+function copyTemplate(templateDir, workspaceDir) {
+  const templateRoot = join(compatRoot, templateDir);
   cpSync(join(templateRoot, "src"), join(workspaceDir, "src"), {
     recursive: true,
   });
@@ -154,15 +174,17 @@ function copyTemplate(workspaceDir) {
     join(templateRoot, "tsconfig.app.json"),
     join(workspaceDir, "tsconfig.app.json")
   );
-
 }
 
-function runConsumer(entry, tarballPath) {
-  const workspaceDir = join(workspacesRoot, `angular-${entry.major}`);
+function runConsumer(entry, tarballPath, template) {
+  const workspaceDir = join(
+    workspacesRoot,
+    `angular-${entry.major}-${template.id}`
+  );
   rmSync(workspaceDir, { recursive: true, force: true });
   mkdirSync(workspaceDir, { recursive: true });
 
-  copyTemplate(workspaceDir);
+  copyTemplate(template.dir, workspaceDir);
 
   const tsMajor = Number(entry.typescript.split(".")[0]);
   const tsconfigPath = join(workspaceDir, "tsconfig.json");
@@ -184,7 +206,9 @@ function runConsumer(entry, tarballPath) {
     createAngularJson(entry.builder)
   );
 
-  console.log(`\n=== Angular ${entry.major} (${entry.angular}) ===`);
+  console.log(
+    `\n=== Angular ${entry.major} (${entry.angular}) [${template.id}] ===`
+  );
   console.log(
     `Node target: ${entry.node} | TypeScript: ${entry.typescript} | Builder: ${entry.builder}`
   );
@@ -195,6 +219,7 @@ function runConsumer(entry, tarballPath) {
 
   return {
     major: entry.major,
+    consumer: template.id,
     angular: entry.angular,
     node: entry.node,
     typescript: entry.typescript,
@@ -206,7 +231,13 @@ function runConsumer(entry, tarballPath) {
 }
 
 function main() {
-  const selectedMajors = parseArgs(process.argv.slice(2));
+  const { majors: selectedMajors, consumers: selectedConsumers } = parseArgs(
+    process.argv.slice(2)
+  );
+  const templates = CONSUMER_TEMPLATES.filter((t) =>
+    selectedConsumers.includes(t.id)
+  );
+
   const entries =
     selectedMajors.length === 0
       ? matrix.majors
@@ -216,19 +247,27 @@ function main() {
     console.error("No matrix entries selected. Use --major <n> or --all.");
     process.exit(1);
   }
+  if (templates.length === 0) {
+    console.error(
+      `No consumer templates matched. Available: ${CONSUMER_TEMPLATES.map((t) => t.id).join(", ")}`
+    );
+    process.exit(1);
+  }
 
   mkdirSync(workspacesRoot, { recursive: true });
   const tarballPath = packLibrary();
   const results = [];
 
   for (const entry of entries) {
-    results.push(runConsumer(entry, tarballPath));
+    for (const template of templates) {
+      results.push(runConsumer(entry, tarballPath, template));
+    }
   }
 
   console.log("\n=== Compatibility summary ===");
   for (const result of results) {
     console.log(
-      `Angular ${result.major} (${result.angular}): install=${result.install}, typecheck=${result.typecheck}, build=${result.build}`
+      `Angular ${result.major} (${result.angular}) [${result.consumer}]: install=${result.install}, typecheck=${result.typecheck}, build=${result.build}`
     );
   }
 }
