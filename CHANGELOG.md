@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - Query `loader` option and `QueryLoader` / `QueryLoaderParams` types (`abortSignal` for cancellation).
 - Secondary entry `@frontkit-ng/signal-http-cache/http-client` with `provideSignalHttpCacheHttpClient()` for opt-in `HttpClient` query transport (Angular 16–22).
 - Optional peer `@angular/common` for the `/http-client` entry.
+- Query option `retentionTime` (milliseconds): how long unused settled cache data may remain after the last live consumer is destroyed (default 60 seconds). Use `0` for immediate removal.
 
 ### Notes
 
@@ -18,6 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Pre-1.0 behavior:** after the final query consumer is destroyed, settled cache entries are retained briefly (default 60s) instead of being deleted immediately. In-flight requests are still aborted. Opt out per query with `retentionTime: 0`.
 - `HttpQuery.loading` remains available with its existing behavior through the pre-1.0 line. Prefer `isLoading` and `isFetching` for new code.
 
 ### Deprecated

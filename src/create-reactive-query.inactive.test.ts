@@ -12,6 +12,8 @@ import {
 } from "./test-support/fetch-mock";
 import type { QueryKey } from "./types";
 
+const immediateCleanup = { retentionTime: 0 };
+
 describe("createReactiveQuery inactive state", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -88,7 +90,11 @@ describe("createReactiveQuery inactive state", () => {
     }) as typeof fetch;
 
     const key = signal<QueryKey | undefined>("/i4-a");
-    const scope = createReactiveQueryScope<string>({ key, fetchFn });
+    const scope = createReactiveQueryScope<string>({
+      key,
+      fetchFn,
+      options: immediateCleanup,
+    });
 
     expect(resolveA).not.toBeNull();
 
@@ -110,6 +116,7 @@ describe("createReactiveQuery inactive state", () => {
     const scope = createReactiveQueryScope<string>({
       key,
       fetchFn: deferred.fetchFn,
+      options: immediateCleanup,
     });
 
     await deferred.resolvePending("A");
@@ -216,6 +223,7 @@ describe("createReactiveQuery inactive state", () => {
 
     cacheStore.set("/i9-b", {
       data: "cached",
+      hasResolvedData: true,
       timestamp: Date.now(),
       ttl: 60_000,
     });
@@ -242,6 +250,7 @@ describe("createReactiveQuery inactive state", () => {
 
     cacheStore.set("/i10-b", {
       data: "stale",
+      hasResolvedData: true,
       timestamp: Date.now() - 5_000,
       ttl: 1_000,
     });
@@ -272,6 +281,7 @@ describe("createReactiveQuery inactive state", () => {
 
     cacheStore.set("/i11-b", {
       data: "stale",
+      hasResolvedData: true,
       timestamp: Date.now() - 5_000,
       ttl: 1_000,
     });
@@ -482,7 +492,7 @@ describe("createReactiveQuery inactive state", () => {
     const deferred = createDeferredFetch();
     const scope = createReactiveQueryScope<string>({
       key,
-      options: { ttl: 60_000 },
+      options: { ttl: 60_000, ...immediateCleanup },
       fetchFn: deferred.fetchFn,
     });
 
@@ -514,6 +524,7 @@ describe("createReactiveQuery inactive state", () => {
     const scope = createReactiveQueryScope<string>({
       key,
       fetchFn: deferred.fetchFn,
+      options: immediateCleanup,
     });
 
     expect(deferred.callCount()).toBe(1);

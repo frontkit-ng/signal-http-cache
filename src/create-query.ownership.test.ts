@@ -10,12 +10,15 @@ import {
   createQueryScopes,
 } from "./test-support/angular-context";
 
+const immediateCleanup = { retentionTime: 0 };
+
 describe("createQuery consumer ownership", () => {
   it("15. one consumer lifecycle registers and releases ownership", async () => {
     const deferred = createDeferredFetch();
     const scope = createQueryScope<string>({
       key: "/one-consumer",
       fetchFn: deferred.fetchFn,
+      options: immediateCleanup,
     });
 
     expect(cacheStore.getConsumerCount("/one-consumer")).toBe(1);
@@ -34,7 +37,7 @@ describe("createQuery consumer ownership", () => {
     const deferred = createDeferredFetch();
     const [scopeA, scopeB] = createQueryScopes<string>("/prefetch", 2, {
       fetchFn: deferred.fetchFn,
-      options: { ttl: 60_000 },
+      options: { ttl: 60_000, ...immediateCleanup },
     });
 
     expect(cacheStore.getConsumerCount("/prefetch")).toBe(2);
@@ -62,6 +65,7 @@ describe("createQuery consumer ownership", () => {
     const scopeA = createQueryScope<string>({
       key: "/after-cache",
       fetchFn: deferred.fetchFn,
+      options: immediateCleanup,
     });
 
     const firstFetch = scopeA.query.fetch();
@@ -72,6 +76,7 @@ describe("createQuery consumer ownership", () => {
     const scopeB = createQueryScope<string>({
       key: "/after-cache",
       fetchFn: deferred.fetchFn,
+      options: immediateCleanup,
     });
     expect(cacheStore.getConsumerCount("/after-cache")).toBe(2);
 
@@ -88,6 +93,7 @@ describe("createQuery consumer ownership", () => {
     const deferred = createDeferredFetch();
     const [scopeA, scopeB, scopeC] = createQueryScopes<string>("/three", 3, {
       fetchFn: deferred.fetchFn,
+      options: immediateCleanup,
     });
 
     expect(cacheStore.getConsumerCount("/three")).toBe(3);
@@ -109,7 +115,10 @@ describe("createQuery consumer ownership", () => {
   });
 
   it("19. query created but never fetched cleans ownership without cache entry", () => {
-    const scope = createQueryScope<string>({ key: "/never-fetched" });
+    const scope = createQueryScope<string>({
+      key: "/never-fetched",
+      options: immediateCleanup,
+    });
 
     expect(cacheStore.getConsumerCount("/never-fetched")).toBe(1);
     expect(cacheStore.has("/never-fetched")).toBe(false);
@@ -161,6 +170,7 @@ describe("createQuery consumer ownership", () => {
     const scope = createQueryScope<string>({
       key: "/abort-on-last",
       fetchFn: deferred.fetchFn,
+      options: immediateCleanup,
     });
 
     const inFlight = scope.query.fetch();

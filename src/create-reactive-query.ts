@@ -17,6 +17,7 @@ import {
   type FetchQueryOptions,
   type LoaderQueryOptions,
 } from "./internal/loader-query-options";
+import { resolveRetentionTimeMs } from "./internal/resolve-retention-time";
 import {
   HttpQuery,
   HttpQueryError,
@@ -44,6 +45,7 @@ function createReactiveQueryImpl<T>(
 
   let ttl: number;
   let staleWhileRevalidate: boolean;
+  let retentionTimeMs: number;
   let fetchInit: ReturnType<typeof splitQueryOptions>["fetchInit"];
   let loader: LoaderQueryOptions<T>["loader"] | undefined;
 
@@ -51,12 +53,14 @@ function createReactiveQueryImpl<T>(
     const split = splitLoaderQueryOptions(options as LoaderQueryOptions<T>);
     ttl = split.library.ttl;
     staleWhileRevalidate = split.library.staleWhileRevalidate;
+    retentionTimeMs = resolveRetentionTimeMs(split.library.retentionTime);
     loader = split.loader;
     fetchInit = {};
   } else {
     const split = splitQueryOptions(options as FetchQueryOptions);
     ttl = split.library.ttl;
     staleWhileRevalidate = split.library.staleWhileRevalidate;
+    retentionTimeMs = resolveRetentionTimeMs(split.library.retentionTime);
     fetchInit = split.fetchInit;
   }
 
@@ -107,7 +111,7 @@ function createReactiveQueryImpl<T>(
 
   function hydrateFromCache(cacheKey: string): void {
     const existing = cacheStore.get<T>(cacheKey);
-    if (existing?.data !== null && existing?.data !== undefined) {
+    if (existing?.hasResolvedData) {
       data.set(existing.data);
       hasResolvedData.set(true);
     } else {
@@ -147,9 +151,13 @@ function createReactiveQueryImpl<T>(
     activeCacheKey = next.cacheKey;
     activeUrl = next.url;
     activeQueryKey = keyValue;
-    releaseParticipant = registerQueryParticipant(activeCacheKey, () => {
-      void fetchData(false);
-    });
+    releaseParticipant = registerQueryParticipant(
+      activeCacheKey,
+      () => {
+        void fetchData(false);
+      },
+      retentionTimeMs
+    );
 
     error.set(null);
     hydrateFromCache(activeCacheKey);

@@ -22,9 +22,29 @@ export interface HttpQuery<T> {
   invalidate(): void;
 }
 
+export type SplitQueryLibraryOptions = {
+  ttl: number;
+  staleWhileRevalidate: boolean;
+  retentionTime?: number;
+};
+
 export type QueryLibraryOptions = {
   ttl?: number;
   staleWhileRevalidate?: boolean;
+  /**
+   * How long settled cache data for this query key may remain in memory after the
+   * last live query consumer is destroyed. Milliseconds. Defaults to 60 seconds.
+   * Use `0` for immediate removal (previous behavior).
+   *
+   * Must be a finite non-negative number (not NaN or ±Infinity) and must not exceed
+   * the maximum delay supported by the runtime timer API (approximately 24.8 days).
+   * Values above that limit throw synchronously when the query is created.
+   *
+   * Does not keep network requests running after the final consumer is destroyed.
+   * `ttl` controls freshness while a cache entry exists;
+   * `retentionTime` controls how long unused settled data may remain after that.
+   */
+  retentionTime?: number;
 };
 
 export type QueryFetchInit = Omit<RequestInit, "method" | "body">;
@@ -51,14 +71,15 @@ export type QueryLoader<T> = (
 export function splitQueryOptions(
   options: Omit<QueryOptions, "method"> = {}
 ): {
-  library: Required<QueryLibraryOptions>;
+  library: SplitQueryLibraryOptions;
   fetchInit: QueryFetchInit;
 } {
-  const { ttl, staleWhileRevalidate, ...fetchInit } = options;
+  const { ttl, staleWhileRevalidate, retentionTime, ...fetchInit } = options;
   return {
     library: {
       ttl: ttl ?? 0,
       staleWhileRevalidate: staleWhileRevalidate ?? false,
+      retentionTime,
     },
     fetchInit,
   };

@@ -1,4 +1,9 @@
-import type { QueryFetchInit, QueryLibraryOptions, QueryLoader } from "../types";
+import type {
+  QueryFetchInit,
+  QueryLibraryOptions,
+  QueryLoader,
+  SplitQueryLibraryOptions,
+} from "../types";
 
 export type LoaderQueryOptions<T> = QueryLibraryOptions & {
   loader: QueryLoader<T>;
@@ -43,15 +48,16 @@ function assertNoFetchInitOnLoaderOptions(options: Record<string, unknown>): voi
 export function splitLoaderQueryOptions<T>(
   options: LoaderQueryOptions<T>
 ): {
-  library: Required<QueryLibraryOptions>;
+  library: SplitQueryLibraryOptions;
   loader: QueryLoader<T>;
 } {
   assertNoFetchInitOnLoaderOptions(options as Record<string, unknown>);
-  const { ttl, staleWhileRevalidate, loader } = options;
+  const { ttl, staleWhileRevalidate, retentionTime, loader } = options;
   return {
     library: {
       ttl: ttl ?? 0,
       staleWhileRevalidate: staleWhileRevalidate ?? false,
+      retentionTime,
     },
     loader,
   };

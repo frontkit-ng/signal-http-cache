@@ -118,6 +118,7 @@ export function createQueryFetchHandlers<T>(
 
     cacheStore.set(cacheKey, {
       data: current.data,
+      hasResolvedData: current.hasResolvedData,
       timestamp: current.timestamp,
       ttl: current.ttl,
       inFlight: undefined,
@@ -192,6 +193,7 @@ export function createQueryFetchHandlers<T>(
 
     cacheStore.set(cacheKey, {
       data: previous?.data ?? null,
+      hasResolvedData: previous?.hasResolvedData ?? false,
       timestamp: previous?.timestamp ?? 0,
       ttl: ttl,
       inFlight: inFlightPromise,
@@ -205,6 +207,7 @@ export function createQueryFetchHandlers<T>(
       if (current?.inFlight === inFlightPromise) {
         cacheStore.set(cacheKey, {
           data: json,
+          hasResolvedData: true,
           timestamp: Date.now(),
           ttl: ttl,
           inFlight: undefined,

@@ -9,6 +9,7 @@ import {
   type FetchQueryOptions,
   type LoaderQueryOptions,
 } from "./internal/loader-query-options";
+import { resolveRetentionTimeMs } from "./internal/resolve-retention-time";
 import {
   HttpQuery,
   HttpQueryError,
@@ -37,6 +38,7 @@ function createQueryImpl<T>(
 
   let ttl: number;
   let staleWhileRevalidate: boolean;
+  let retentionTimeMs: number;
   let fetchInit: ReturnType<typeof splitQueryOptions>["fetchInit"];
   let loader: LoaderQueryOptions<T>["loader"] | undefined;
 
@@ -44,12 +46,14 @@ function createQueryImpl<T>(
     const split = splitLoaderQueryOptions(options as LoaderQueryOptions<T>);
     ttl = split.library.ttl;
     staleWhileRevalidate = split.library.staleWhileRevalidate;
+    retentionTimeMs = resolveRetentionTimeMs(split.library.retentionTime);
     loader = split.loader;
     fetchInit = {};
   } else {
     const split = splitQueryOptions(options as FetchQueryOptions);
     ttl = split.library.ttl;
     staleWhileRevalidate = split.library.staleWhileRevalidate;
+    retentionTimeMs = resolveRetentionTimeMs(split.library.retentionTime);
     fetchInit = split.fetchInit;
   }
 
@@ -83,18 +87,22 @@ function createQueryImpl<T>(
     loader,
   });
 
-  const releaseParticipant = registerQueryParticipant(cacheKey, () => {
-    if (revalidationEligible) {
-      void fetchData(false);
-    }
-  });
+  const releaseParticipant = registerQueryParticipant(
+    cacheKey,
+    () => {
+      if (revalidationEligible) {
+        void fetchData(false);
+      }
+    },
+    retentionTimeMs
+  );
 
   destroyRef.onDestroy(() => {
     releaseParticipant();
   });
 
   const existing = cacheStore.get<T>(cacheKey);
-  if (existing?.data !== null && existing?.data !== undefined) {
+  if (existing?.hasResolvedData) {
     data.set(existing.data);
     hasResolvedData.set(true);
   }

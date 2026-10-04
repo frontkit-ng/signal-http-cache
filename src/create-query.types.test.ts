@@ -17,7 +17,12 @@ describe("createQuery loader/fetch types", () => {
 
   it("LoaderQueryOptions only allows library fields besides loader", () => {
     type LibraryOnly = keyof Omit<LoaderQueryOptions<unknown>, "loader">;
-    type Allowed = LibraryOnly extends "ttl" | "staleWhileRevalidate" ? true : false;
+    type Allowed = LibraryOnly extends
+      | "ttl"
+      | "staleWhileRevalidate"
+      | "retentionTime"
+      ? true
+      : false;
     const allowed: Allowed = true;
     expect(allowed).toBe(true);
   });

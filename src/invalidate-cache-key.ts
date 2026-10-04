@@ -4,9 +4,10 @@ const invalidationObservers = new Map<string, Set<() => void>>();
 
 export function registerQueryParticipant(
   cacheKey: string,
-  onInvalidate: () => void
+  onInvalidate: () => void,
+  retentionTimeMs: number
 ): () => void {
-  cacheStore.registerConsumer(cacheKey);
+  cacheStore.registerConsumer(cacheKey, retentionTimeMs);
 
   let observers = invalidationObservers.get(cacheKey);
   if (!observers) {
@@ -33,10 +34,13 @@ export function invalidateCacheKey(cacheKey: string): void {
     entry.abortController?.abort();
     cacheStore.set(cacheKey, {
       data: entry.data,
+      hasResolvedData: entry.hasResolvedData,
       timestamp: 0,
       ttl: entry.ttl,
       inFlight: undefined,
       abortController: undefined,
+      idleTimer: entry.idleTimer,
+      idleGeneration: entry.idleGeneration,
     });
   }
 

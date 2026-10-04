@@ -174,7 +174,7 @@ A failed request does not permanently block the query. After an error, a later `
 
 `invalidate()` aborts the active request for that query key according to the API contract. Pending callers settle, and the query is not left permanently blocked. A subsequent `fetch()` can proceed.
 
-When the last Angular consumer for a query key is destroyed, any active request for that key is aborted and owned cache state is released.
+When the last Angular consumer for a query key is destroyed, any active request for that key is aborted. Settled cache data may remain available briefly for remounts (default **60 seconds**); use `retentionTime: 0` for immediate removal (previous behavior).
 
 ### Consumer lifecycle
 
@@ -182,7 +182,21 @@ When the last Angular consumer for a query key is destroyed, any active request 
 
 - Multiple live consumers of the same query key share cached data and in-flight work.
 - Destroying one consumer does not remove shared cache state while other consumers still exist.
-- When the final consumer is destroyed, owned cache and request resources for that key are cleaned up automatically via `DestroyRef`.
+- When the final consumer is destroyed, in-flight work stops and **unused** settled data is kept for a short time (see **Cache freshness vs retention** below) so routes, `@if`, and reactive key changes can reuse it without refetching.
+- `ttl` controls whether cached data is **fresh** while an entry exists. `retentionTime` controls how long **unused** settled data stays in memory after the last consumer is gone.
+
+#### Cache freshness vs retention
+
+| Option | Meaning |
+|--------|---------|
+| `ttl` | Freshness while a cache entry exists (default `0` = revalidate on fetch when stale). |
+| `retentionTime` | How long unused settled data may remain after the last consumer is destroyed (default `60000` ms). |
+
+Advanced — immediate cleanup (memory-sensitive lists, huge key cardinality):
+
+```ts
+createQuery("/api/large-list", { retentionTime: 0 });
+```
 
 `createMutation()` and `createBaseMutation()` do not participate in this query lifecycle model.
 

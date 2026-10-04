@@ -10,6 +10,8 @@ import {
   flushMicrotasks,
 } from "./test-support/fetch-mock";
 
+const immediateCleanup = { retentionTime: 0 };
+
 describe("createReactiveQuery consumer ownership", () => {
   it("R14. destroy after transitions releases active key", async () => {
     const key = signal<"/r14-a" | "/r14-b">("/r14-a");
@@ -17,6 +19,7 @@ describe("createReactiveQuery consumer ownership", () => {
     const scope = createReactiveQueryScope<string>({
       key,
       fetchFn: deferred.fetchFn,
+      options: immediateCleanup,
     });
 
     expect(cacheStore.getConsumerCount("/r14-a")).toBe(1);

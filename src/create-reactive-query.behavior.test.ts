@@ -116,6 +116,7 @@ describe("createReactiveQuery behavior", () => {
     const deferred = createDeferredFetch();
     cacheStore.set("/r5-b", {
       data: { v: "stale" },
+      hasResolvedData: true,
       timestamp: Date.now() - 5_000,
       ttl: 1_000,
     });
@@ -151,6 +152,7 @@ describe("createReactiveQuery behavior", () => {
 
     cacheStore.set("/r6-b", {
       data: { v: "stale" },
+      hasResolvedData: true,
       timestamp: Date.now() - 5_000,
       ttl: 1_000,
     });
@@ -186,6 +188,7 @@ describe("createReactiveQuery behavior", () => {
     const deferred = createDeferredFetch();
     cacheStore.set("/r4-b", {
       data: { v: 99 },
+      hasResolvedData: true,
       timestamp: Date.now(),
       ttl: 60_000,
     });
@@ -505,7 +508,7 @@ describe("createReactiveQuery behavior", () => {
     const deferred = createDeferredFetch();
     const scope = createReactiveQueryScope<{ v: number }>({
       key,
-      options: { ttl: 60_000 },
+      options: { ttl: 60_000, retentionTime: 0 },
       fetchFn: deferred.fetchFn,
     });
 
@@ -556,6 +559,7 @@ describe("createReactiveQuery behavior", () => {
 
     cacheStore.set("/r20", {
       data: { v: 42 },
+      hasResolvedData: true,
       timestamp: Date.now(),
       ttl: 60_000,
     });
